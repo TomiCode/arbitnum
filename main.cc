@@ -5,13 +5,21 @@ int main(int argc, char ** argv)
 {
   Number a;
   Number b;
+  Number c;
 
-  printf("%x %x %x\n", 290, 190, 290 + 190);
+  c = 0x03;
+
+  //printf("%x %x %x\n", 290, 190, 290 + 190);
   
-  a = 290;
-  b = 190;
+  a = 0x01;
+  b = 0x02;
   a += b;
-  a.PrintHex();
+  printf("Hello world.\n");
+  c = a + b;
   
+  printf("--- Drawing result for 'a':\n");
+  a.PrintHex();
+  b.PrintHex();
+  c.PrintHex();
   return 0;
 }

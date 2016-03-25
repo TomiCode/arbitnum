@@ -12,16 +12,16 @@ private:
   bool     bNegative;
   size_t   iSize;
 
-  bool assignStdType(size_t size, uint8_t ** out_ptr);
+  bool allocateType(size_t size, uint8_t ** out_ptr);
 
   template<class T>
     bool readStdType(T value);
 
 public:
   Number();
+  Number(const Number &copy);
   ~Number();
 
-  // bool Parse(const char * str);
   void PrintHex();
 
   /* Assign standard C/C++ types. */
@@ -38,7 +38,8 @@ public:
   // bool operator = (const char * buffer);
 
   /* Assign number to number. Copy over digits. */
-  void operator = (const Number &rhs);
+  Number& operator = (const Number &value);
+  Number& operator = (Number &value);
 
   /* Comparison operators. */
   bool operator <  (const Number &rhs);
@@ -49,7 +50,8 @@ public:
   bool operator == (const Number &rhs);
   bool operator != (const Number &rhs);
 
-  void operator += (const Number &rhs);
+  Number& operator += (const Number &rhs);
+  const Number operator + (const Number &value);
   //void operator -= (const Number &rhs);
 };
 
