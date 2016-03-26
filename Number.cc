@@ -296,6 +296,54 @@ Number& Number::operator -= (const Number &rhs)
   return *this;
 }
 
+Number& Number::operator *= (const Number &value)
+{
+  /* To myself: Remember this is a bad solution to some problems. I should add some asserts here, to have a bit more fun. */
+  if (value.iSize <= 0 || value.pDigits == NULL || this->iSize <= 0 || this->pDigits == NULL) {
+    return *this;
+  }
+  size_t s_new = this->iSize + value.iSize;
+  size_t s_old = this->iSize;
+  
+  uint8_t *p_digit  = this->pDigits;
+  uint8_t *p_result = (uint8_t*)malloc(sizeof(uint8_t) * s_new);
+  if (p_result == NULL) {
+    FAILPRINT("Can not allocate result number.\n");
+    return *this;
+  }
+  memset(p_result, 0, sizeof(uint8_t) * s_new);
+  this->pDigits = p_result;
+  this->iSize   = s_new; 
+
+  uint16_t u_res = 0;
+  uint8_t *p_lhs = NULL;
+  uint8_t *p_rhs = NULL;
+
+  for (size_t s_val = 0; s_val < value.iSize; s_val++) {
+    p_result = (this->pDigits + s_val);
+    p_rhs    = (value.pDigits + s_val);
+    p_lhs    = p_digit;
+
+    for (size_t s_opr = 0; s_opr < s_old || u_res > 0; s_opr++, p_result++, p_lhs++) {
+      u_res   = (uint16_t)((*p_rhs) * (*p_lhs)) + u_res + (*p_result);
+      *p_result = (uint8_t)(u_res & 0xFF);
+      u_res   = (u_res >> CHAR_BITS);
+
+      WARNPRINT("u_res %04x, p_rhs %02x, p_lhs %02x, p_result %02x.\n", u_res, *p_rhs, *p_lhs, *p_result);
+    }
+  }
+  free(p_digit);
+  p_digit = NULL;
+
+  this->__applysize();
+  return *this;
+}
+
+const Number Number::operator * (const Number &value)
+{
+  return Number(*this) *= value;
+}
+
 const Number Number::operator - (const Number &value)
 {
   return Number(*this) -= value;

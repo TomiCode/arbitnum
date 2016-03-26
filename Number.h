@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <inttypes.h>
 
 class Number {
@@ -56,6 +57,8 @@ public:
 
   Number& operator += (const Number &rhs);
   Number& operator -= (const Number &rhs);
+  Number& operator *= (const Number &rhs);
+  const Number operator * (const Number &value);
   const Number operator + (const Number &value);
   const Number operator - (const Number &value);
 };
