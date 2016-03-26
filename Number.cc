@@ -1,37 +1,31 @@
 #include "Number.h"
+#include "Log.h"
 
 Number::Number()
 {
-  this->pDigits = NULL;
+  this->pDigits   = NULL;
+  this->iSize     = 0;
   this->bNegative = false;
-  this->iSize = 0;
 }
 
 Number::Number(const Number &copy)
 {
-  printf("Copy constructor call.\n");
- 
-  this->pDigits = NULL;
+  this->pDigits   = NULL;
+  this->iSize     = 0;
   this->bNegative = false;
-  this->iSize = 0;
 
   if (copy.iSize <= 0 || copy.pDigits == NULL)
     return;
 
-  uint8_t *digits = NULL;
-  uint8_t *digit_end = NULL;
-  uint8_t *copyDigits = copy.pDigits;
-
-  if (!this->allocateType(copy.iSize, &digits)) {
-    printf("Can not allocate digit memory.\n");
+  if (!this->__allocate(copy.iSize, NULL)) {
+    FAILPRINT("Can not allocate digits memory.\n");
     return;
   }
 
-  digit_end = (digits + this->iSize);
-  for(; digits < digit_end; digits++, copyDigits++) {
-    *digits = *copyDigits;
+  if (!this->__cpymemory(copy.pDigits, copy.iSize)) {
+    FAILPRINT("Memory copy failed.\n");
+    return;
   }
-  // this->operator=(copy);
 }
 
 Number::~Number()
@@ -41,7 +35,7 @@ Number::~Number()
   }
 }
 
-bool Number::allocateType(size_t size, uint8_t ** out_ptr)
+bool Number::__allocate(size_t size, uint8_t ** out_ptr)
 {
   if (size <= 0)
     return false;
@@ -51,7 +45,7 @@ bool Number::allocateType(size_t size, uint8_t ** out_ptr)
     return false;
 
   if (this->pDigits != NULL) {
-    printf("[allocateType]\t Freeing [%p]: %p.\n", this, this->pDigits);
+    INFOPRINT("Freeing [%p]: %p.\n", this, this->pDigits);
     free(this->pDigits);
     this->iSize = 0;
   }
@@ -61,7 +55,57 @@ bool Number::allocateType(size_t size, uint8_t ** out_ptr)
   if (out_ptr != NULL) {
     *out_ptr = digit_ptr;
   }
-  printf("[allocateType]\t [%p]: %p.\n",this, this->pDigits);
+  return true;
+}
+
+bool Number::__cpymemory(void *ptr, size_t size)
+{
+  if (ptr == NULL || size <= 0) {
+    FAILPRINT("Can not copy non-existent buffer.\n");
+    return false;
+  }
+
+  if (size > this->iSize) {
+    FAILPRINT("Can not copy larger memory buffer.\n");
+    return false;
+  }
+  
+  uint8_t *digits = this->pDigits;
+  uint8_t *dptr = (uint8_t*)ptr;
+  for(size_t c = 0; c < this->iSize && c < size; c++) {
+    *(digits++) = *(dptr++);
+  }
+  return true;
+}
+
+bool Number::__applysize()
+{
+  if (this->pDigits == NULL || this->iSize <= 0)
+    return false;
+
+  uint8_t *digitend = (this->pDigits + this->iSize - 1);
+  size_t  newsize   = this->iSize;
+
+  for (; digitend >= this->pDigits; digitend--) {
+    if (*digitend == 0x00)
+      newsize--;
+    else
+      break;
+  }
+  
+  if (newsize == this->iSize)
+    return true;
+
+  WARNPRINT("Shrinking memory allocation %lu => %lu.\n", this->iSize, newsize);
+
+  uint8_t *digitptr = (uint8_t*)realloc(this->pDigits, sizeof(uint8_t) * newsize);
+  if (digitptr == NULL) {
+    FAILPRINT("Can not shrink memory allocation. (nil).\n");
+    return false;
+  }
+
+  this->iSize   = newsize;
+  this->pDigits = digitptr;
   return true;
 }
 
@@ -69,27 +113,28 @@ template<class T>
 bool Number::readStdType(T value)
 {
   T _val = value;
-  uint8_t *digits = NULL;
-  uint8_t *digit_end = NULL;
 
-  if (!this->allocateType(sizeof(T), &digits)) {
-    printf("Can not create digits for number.\n");
+  if (!this->__allocate(sizeof(T), NULL)) {
+    FAILPRINT("Can not create digits for number.\n");
     return false;
   }
 
-  printf("[readStdType]\t [%p] %p, size: %lu\n", this, this->pDigits, this->iSize);
-  digit_end = (digits + this->iSize);
+  INFOPRINT("[%p] %p, size: %lu\n", this, this->pDigits, this->iSize);
 
   if (_val < 0) {
     _val *= (-1);
     this->bNegative = true;
   }
+  
+  if (!this->__cpymemory(&value, sizeof(T))) {
+    FAILPRINT("Can not copy Type memory (%lu).\n", sizeof(T));
+    return false;
+  }
 
-  for(; digits != digit_end; digits++) {
-    *digits = (uint8_t)(_val & 0xff);
-    _val = _val >> CHAR_BITS;
-    // printf("Digit [%02x].\n", *digits);
-  } 
+  if (!this->__applysize()) {
+    FAILPRINT("Changing size failed.\n");
+    return false;
+  }
   return true;
 }
 
@@ -155,42 +200,36 @@ void Number::operator = (const uint8_t value)
 
 Number& Number::operator = (const Number &value)
 {
-  printf("[%p] %p => [%p] %p.\n", this, this->pDigits, &value, value.pDigits);
+  INFOPRINT("[%p] %p => [%p] %p.\n", this, this->pDigits, &value, value.pDigits);
   if (this == &value) {
-    printf("Can not assign self.\n");
+    FAILPRINT("Can not assign self.\n");
     return *this;
   }
   
   if (value.iSize <= 0 || value.pDigits == NULL) {
-    printf("Size unknown.\n");
+    FAILPRINT("Size unknown.\n");
     return *this;
   }
 
-  uint8_t *digits     = NULL;
-  uint8_t *digit_end  = NULL;
-  uint8_t *copyDigits = value.pDigits;
-  
-  if (!this->allocateType(value.iSize, &digits)) {
-    printf("Can not allocate digits.\n");
+  if (!this->__allocate(value.iSize, NULL)) {
+    FAILPRINT("Can not allocate digits.\n");
     return *this;
   }
 
-  digit_end = (digits + this->iSize);
-  printf("Copying from %p to %p.\n", copyDigits, digits);
-  for (; digits < digit_end; digits++, copyDigits++) {
-    *digits = *copyDigits;
+  if (!this->__cpymemory(value.pDigits, value.iSize)) {
+    FAILPRINT("Error while copying memory.\n");
+    return *this;
   }
   return *this;
 }
 
-Number& Number::operator+= (const Number &rhs)
+Number& Number::operator += (const Number &rhs)
 {
-  printf("Sum operator.\n");
   if (rhs.pDigits == NULL || rhs.iSize <= 0 || this->pDigits == NULL || this->iSize <= 0) {
     return *this;
   }
 
-  printf("operation += on pointers: %p and %p.\n", this, &rhs);
+  INFOPRINT("operation += on pointers: %p and %p.\n", this, &rhs);
 
   size_t  newSize = (rhs.iSize > this->iSize ? rhs.iSize : this->iSize) + 1; 
   uint8_t *newDigits = (uint8_t*)realloc(this->pDigits, sizeof(uint8_t) * newSize);

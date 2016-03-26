@@ -1,5 +1,6 @@
 #ifndef NUMBER_H
 #define NUMBER_H
+
 #define CHAR_BITS 8
 
 #include <stdio.h>
@@ -12,7 +13,9 @@ private:
   bool     bNegative;
   size_t   iSize;
 
-  bool allocateType(size_t size, uint8_t ** out_ptr);
+  bool __allocate(size_t size, uint8_t ** out_ptr);
+  bool __cpymemory(void *ptr, size_t size);
+  bool __applysize();
 
   template<class T>
     bool readStdType(T value);
