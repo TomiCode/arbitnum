@@ -2,6 +2,8 @@
 #define NUMBER_H
 
 #define CHAR_BITS 8
+#define MIN(a,b) (((a < b)) ? (a) : (b))
+#define MAX(a,b) (((a > b)) ? (a) : (b))
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -53,8 +55,9 @@ public:
   bool operator != (const Number &rhs);
 
   Number& operator += (const Number &rhs);
+  Number& operator -= (const Number &rhs);
   const Number operator + (const Number &value);
-  //void operator -= (const Number &rhs);
+  const Number operator - (const Number &value);
 };
 
 #endif

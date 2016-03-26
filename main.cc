@@ -10,19 +10,19 @@ int main(int argc, char ** argv)
   Number b;
   Number c;
 
+  a = 0x11114;
   c = 0x03;
+  b = 0x01014;
 
-  //printf("%x %x %x\n", 290, 190, 290 + 190);
+  printf("%6x %6x %6x.\n", 0x11114, 0x01014, 0x11114 - 0x01014);
+
+  a -= b;
+
+  // c = a + b;
   
-  a = 0x01;
-  b = 0x02;
-  a += b;
-  printf("Hello world.\n");
-  c = a + b;
-  
-  printf("--- Drawing result for 'a':\n");
+  // printf("--- Drawing result for 'a':\n");
   a.PrintHex();
   b.PrintHex();
-  c.PrintHex();
+  // c.PrintHex();
   return 0;
 }

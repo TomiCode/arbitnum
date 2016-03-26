@@ -200,7 +200,6 @@ void Number::operator = (const uint8_t value)
 
 Number& Number::operator = (const Number &value)
 {
-  INFOPRINT("[%p] %p => [%p] %p.\n", this, this->pDigits, &value, value.pDigits);
   if (this == &value) {
     FAILPRINT("Can not assign self.\n");
     return *this;
@@ -228,17 +227,15 @@ Number& Number::operator += (const Number &rhs)
   if (rhs.pDigits == NULL || rhs.iSize <= 0 || this->pDigits == NULL || this->iSize <= 0) {
     return *this;
   }
-
-  INFOPRINT("operation += on pointers: %p and %p.\n", this, &rhs);
-
-  size_t  newSize = (rhs.iSize > this->iSize ? rhs.iSize : this->iSize) + 1; 
+  
+  size_t  newSize = MAX(rhs.iSize, this->iSize) + 1; 
   uint8_t *newDigits = (uint8_t*)realloc(this->pDigits, sizeof(uint8_t) * newSize);
   if (newDigits == NULL) {
     printf("Can not reallocate result digits. (Internal error).\n");
     return *this;
   }
 
-  this->iSize = newSize;
+  this->iSize   = newSize;
   this->pDigits = newDigits;
 
   uint16_t result = 0;
@@ -257,6 +254,51 @@ Number& Number::operator += (const Number &rhs)
     }
   }
   return *this;
+}
+
+Number& Number::operator -= (const Number &rhs)
+{
+  if (rhs.pDigits == NULL || rhs.iSize <= 0 || this->pDigits == NULL || this->iSize <= 0) {
+    return *this;
+  }
+  size_t newsize = MAX(rhs.iSize, this->iSize);
+  uint8_t *newDigits = NULL;
+
+  if (this->iSize != newsize) {
+    newDigits = (uint8_t*)realloc(this->pDigits, sizeof(uint8_t) * newsize);
+    if (newDigits == NULL) {
+      FAILPRINT("Can not allocate new digit buffer.\n");
+      return *this;
+    }
+  }
+
+  if (newDigits != NULL) {
+    this->pDigits = newDigits;
+    this->iSize = newsize;
+  }
+  newDigits = this->pDigits;
+  uint8_t *rhsDigit = rhs.pDigits;
+  uint8_t  carry  = 0;
+
+  for (size_t s = 0; s < newsize; s++, newDigits++) {
+    WARNPRINT("newDigits %02x rhsDigit %02x.\n", *newDigits, *rhsDigit);
+    if (*newDigits < *rhsDigit) {
+      *newDigits = (uint8_t)(((uint16_t)(1 << CHAR_BITS) | *newDigits) - carry);
+      carry = 1;
+    } else {
+      *newDigits = *newDigits - carry;
+      carry = 0;
+    }
+    *newDigits -= *(rhsDigit++);
+    WARNPRINT("Result %02x.\n", *newDigits);
+  }
+  this->__applysize();
+  return *this;
+}
+
+const Number Number::operator - (const Number &value)
+{
+  return Number(*this) -= value;
 }
 
 const Number Number::operator + (const Number &value)
