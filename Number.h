@@ -39,7 +39,6 @@ public:
 
   /* Assign number to number. Copy over digits. */
   Number& operator = (const Number &value);
-  Number& operator = (Number &value);
 
   /* Comparison operators. */
   bool operator <  (const Number &rhs);

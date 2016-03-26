@@ -153,12 +153,6 @@ void Number::operator = (const uint8_t value)
   this->readStdType<uint8_t>(value);
 }
 
-Number& Number::operator = (Number &value)
-{
-  printf("No static operator =.\n");
-  return *this;
-}
-
 Number& Number::operator = (const Number &value)
 {
   printf("[%p] %p => [%p] %p.\n", this, this->pDigits, &value, value.pDigits);
@@ -210,7 +204,7 @@ Number& Number::operator+= (const Number &rhs)
 
   uint16_t result = 0;
   uint8_t  carry = 0;
-  for (int i = 0; i < this->iSize; i++) {
+  for (size_t i = 0; i < this->iSize; i++) {
     if (i < rhs.iSize) {
       result = this->pDigits[i] + rhs.pDigits[i] + carry;
       this->pDigits[i] = (uint8_t)(result & 0xFF);

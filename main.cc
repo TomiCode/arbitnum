@@ -3,6 +3,9 @@
 
 int main(int argc, char ** argv)
 {
+  (void)argc;
+  (void)argv;
+
   Number a;
   Number b;
   Number c;
