@@ -10,15 +10,14 @@ int main(int argc, char ** argv)
   Number b;
   Number c;
 
-  a = 0xffffff;
+  a = 0x15263748U;
   c = 0x03;
-  b = 0xfff;
+  b = 0x046219U;
 
-  printf("%x %x %lx.\n", 0xffffff, 0xfff, 0xffffffL * 0xfffL);
+  printf("%x %x %lx.\n", 0x15263748U, 0x046219U, 0x15263748LU * 0x046219LU);
 
   a *= b;
-  c = a * b;
-  
+
   // printf("--- Drawing result for 'a':\n");
   a.PrintHex();
   b.PrintHex();

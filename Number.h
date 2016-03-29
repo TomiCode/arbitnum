@@ -17,8 +17,15 @@ private:
   size_t   iSize;
 
   bool __allocate(size_t size, uint8_t ** out_ptr);
+  bool __reallocate(size_t size, uint8_t ** out_ptr);
   bool __cpymemory(void *ptr, size_t size);
   bool __applysize();
+
+  bool __isvalid() const;
+
+  bool __operator_sum(const Number &param);
+  bool __operator_sub(const Number &param);
+  bool __operator_mul(const Number &param);
 
   template<class T>
     bool readStdType(T value);
@@ -43,7 +50,7 @@ public:
   /* Assign char buffer as number. */
   // bool operator = (const char * buffer);
 
-  /* Assign number to number. Copy over digits. */
+  /* Assign number to number. Copy digits. */
   Number& operator = (const Number &value);
 
   /* Comparison operators. */

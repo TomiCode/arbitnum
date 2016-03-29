@@ -58,6 +58,22 @@ bool Number::__allocate(size_t size, uint8_t ** out_ptr)
   return true;
 }
 
+bool Number::__reallocate(size_t size, uint8_t ** out_ptr)
+{
+  uint8_t *ndigits = (uint8_t*)realloc(this->pDigits, sizeof(uint8_t) * size);
+  if (ndigits == NULL) {
+    FAILPRINT("Can not modify memory allocation.\n");
+    return false;
+  }
+  this->iSize   = size;
+  this->pDigits = ndigits;
+
+  if (out_ptr != NULL) {
+    *out_ptr = ndigits;
+  }
+  return true;
+}
+
 bool Number::__cpymemory(void *ptr, size_t size)
 {
   if (ptr == NULL || size <= 0) {
@@ -106,6 +122,164 @@ bool Number::__applysize()
 
   this->iSize   = newsize;
   this->pDigits = digitptr;
+  return true;
+}
+
+bool Number::__isvalid() const
+{
+  if (this->pDigits == NULL || this->iSize <= 0)
+    return false;
+
+  return true;
+}
+
+bool Number::__operator_sum(const Number &param)
+{
+  if (this == &param) {
+    WARNPRINT("Self operation not supported.\n");
+    return false;
+  }
+
+  if (!this->__isvalid()) {
+    FAILPRINT("Invalid self.\n");
+    return false;
+  }
+
+  if (!param.__isvalid()) {
+    FAILPRINT("Operator param invalid.\n");
+    return false;
+  }
+
+  size_t   nsize  = MAX(this->iSize, param.iSize) + 1;
+  uint8_t *pardig = param.pDigits;
+  uint8_t *digits = NULL;
+  uint16_t result = 0;
+
+  if (!this->__reallocate(nsize, &digits)) {
+    FAILPRINT("Can not reallocate memory.\n");
+    return false;
+  }
+
+  for (size_t s = 0; s < nsize; s++, digits++) {
+    if (s < param.iSize) {
+      result  = ((uint16_t)(*digits + *(pardig++))) + result;
+      *digits = (uint8_t)(result & 0xFF);
+      result  = (uint8_t)(result >> CHAR_BITS); 
+    } else if (result != 0) {
+      result  = ((uint16_t)(*digits)) + result;
+      *digits = (uint8_t)(result & 0xFF);
+      result  = (uint8_t)(result >> CHAR_BITS);
+    } else break;
+  }
+  
+  if (!this->__applysize()) {
+    FAILPRINT("Can not change allocated memory region.\n");
+  }
+  return true;
+}
+
+bool Number::__operator_sub(const Number &param)
+{
+  if (this == &param) {
+    WARNPRINT("Self operation not supported.\n");
+    return false;
+  }
+
+  if (!this->__isvalid()) {
+    FAILPRINT("Invalid self.\n");
+    return false;
+  }
+
+  if (!param.__isvalid()) {
+    FAILPRINT("Operator param invalid.\n");
+    return false;
+  }
+
+  size_t nsize = MAX(this->iSize, param.iSize);
+  uint8_t *pardig = param.pDigits;
+  uint8_t *digits = NULL;
+  
+  if (this->iSize != nsize) {
+    if (!this->__reallocate(nsize, &digits)) {
+      FAILPRINT("Error while memory reallocate.\n");
+      return false;
+    }
+  } else {
+    digits = this->pDigits;
+  }
+
+  uint8_t carry = 0;
+  for (size_t s = 0; s < nsize; s++, digits++) {
+    if (*digits < *pardig) {
+      *digits = (uint8_t)(((uint16_t)(1 << CHAR_BITS) | *digits) - *(pardig++) - carry); 
+      carry   = 0x01;
+    } else {
+      *digits = (uint8_t)(*digits - *(pardig++) - carry);
+      carry   = 0x00;
+    }
+  }
+
+  if (!this->__applysize()) {
+    FAILPRINT("Can not change allocated memory region.\n");
+  }
+  return true;
+}
+
+bool Number::__operator_mul(const Number &param)
+{
+  if (this == &param) {
+    WARNPRINT("Self operation not supported.\n");
+    return false;
+  }
+  
+  if (!this->__isvalid()) {
+    FAILPRINT("Invalid self.\n");
+    return false;
+  }
+
+  if (!param.__isvalid()) {
+    FAILPRINT("Operator param invalid.\n");
+    return false;
+  }
+
+  size_t sres = this->iSize + param.iSize;
+  uint8_t * const res_digits = (uint8_t*)malloc(sizeof(uint8_t) * sres);
+  
+  if (res_digits == NULL) {
+    FAILPRINT("Can not allocate result number.\n");
+    return false;
+  }
+  memset(res_digits, 0, sizeof(uint8_t) * sres);
+
+  uint8_t *resdig = NULL;
+  uint8_t *pardig = NULL;
+  uint8_t *digits = NULL;
+  uint16_t result = 0;
+
+  for (size_t ps = 0; ps < param.iSize; ps++) {
+    resdig = (res_digits + ps);
+    pardig = (param.pDigits + ps);
+    digits = this->pDigits;
+
+    WARNPRINT("Starting %02lu cycle.\n", ps);
+    for (size_t so = 0; so < this->iSize || result > 0; so++, digits++, resdig++) {
+      result  = ((uint16_t)((*pardig) * (*digits)) + result + (*resdig));
+      *resdig = (uint8_t)(result & 0xFF);
+      result  = (result >> CHAR_BITS);
+
+      INFOPRINT("result %02x, pardig %02x, digits %02x, resdig %02x.\n", result, *pardig, *digits, *resdig);
+    }
+  }
+
+  WARNPRINT("Freeing self digits %p and assign result %p.\n", this->pDigits, res_digits);
+  free(this->pDigits);
+  
+  this->pDigits = res_digits;
+  this->iSize   = sres;
+
+  if (!this->__applysize()) {
+    FAILPRINT("Can not change allocated result size.\n");
+  }
   return true;
 }
 
@@ -222,120 +396,28 @@ Number& Number::operator = (const Number &value)
   return *this;
 }
 
-Number& Number::operator += (const Number &rhs)
+Number& Number::operator += (const Number &param)
 {
-  if (rhs.pDigits == NULL || rhs.iSize <= 0 || this->pDigits == NULL || this->iSize <= 0) {
+  if ((this->bNegative && param.bNegative) || 
+      (!this->bNegative && !param.bNegative)) {
+    
+    this->__operator_sum(param);
     return *this;
   }
-  
-  size_t  newSize = MAX(rhs.iSize, this->iSize) + 1; 
-  uint8_t *newDigits = (uint8_t*)realloc(this->pDigits, sizeof(uint8_t) * newSize);
-  if (newDigits == NULL) {
-    printf("Can not reallocate result digits. (Internal error).\n");
-    return *this;
-  }
-
-  this->iSize   = newSize;
-  this->pDigits = newDigits;
-
-  uint16_t result = 0;
-  uint8_t  carry = 0;
-  for (size_t i = 0; i < this->iSize; i++) {
-    if (i < rhs.iSize) {
-      result = this->pDigits[i] + rhs.pDigits[i] + carry;
-      this->pDigits[i] = (uint8_t)(result & 0xFF);
-      carry = (uint8_t)(result >> CHAR_BITS);
-    } else if (carry != 0) {
-      result = this->pDigits[i] + carry;
-      this->pDigits[i] = (uint8_t)(result & 0xFF);
-      carry = (uint8_t)(result >> CHAR_BITS);
-    } else {
-      break;
-    }
-  }
+  /* Negative number operation: WIP - doesn't work. :D */
+  this->__operator_sum(param);
   return *this;
 }
 
 Number& Number::operator -= (const Number &rhs)
 {
-  if (rhs.pDigits == NULL || rhs.iSize <= 0 || this->pDigits == NULL || this->iSize <= 0) {
-    return *this;
-  }
-  size_t newsize = MAX(rhs.iSize, this->iSize);
-  uint8_t *newDigits = NULL;
-
-  if (this->iSize != newsize) {
-    newDigits = (uint8_t*)realloc(this->pDigits, sizeof(uint8_t) * newsize);
-    if (newDigits == NULL) {
-      FAILPRINT("Can not allocate new digit buffer.\n");
-      return *this;
-    }
-  }
-
-  if (newDigits != NULL) {
-    this->pDigits = newDigits;
-    this->iSize = newsize;
-  }
-  newDigits = this->pDigits;
-  uint8_t *rhsDigit = rhs.pDigits;
-  uint8_t  carry  = 0;
-
-  for (size_t s = 0; s < newsize; s++, newDigits++) {
-    WARNPRINT("newDigits %02x rhsDigit %02x.\n", *newDigits, *rhsDigit);
-    if (*newDigits < *rhsDigit) {
-      *newDigits = (uint8_t)(((uint16_t)(1 << CHAR_BITS) | *newDigits) - carry);
-      carry = 1;
-    } else {
-      *newDigits = *newDigits - carry;
-      carry = 0;
-    }
-    *newDigits -= *(rhsDigit++);
-    WARNPRINT("Result %02x.\n", *newDigits);
-  }
-  this->__applysize();
+  this->__operator_sub(rhs);
   return *this;
 }
 
 Number& Number::operator *= (const Number &value)
 {
-  /* To myself: Remember this is a bad solution to some problems. I should add some asserts here, to have a bit more fun. */
-  if (value.iSize <= 0 || value.pDigits == NULL || this->iSize <= 0 || this->pDigits == NULL) {
-    return *this;
-  }
-  size_t s_new = this->iSize + value.iSize;
-  size_t s_old = this->iSize;
-  
-  uint8_t *p_digit  = this->pDigits;
-  uint8_t *p_result = (uint8_t*)malloc(sizeof(uint8_t) * s_new);
-  if (p_result == NULL) {
-    FAILPRINT("Can not allocate result number.\n");
-    return *this;
-  }
-  memset(p_result, 0, sizeof(uint8_t) * s_new);
-  this->pDigits = p_result;
-  this->iSize   = s_new; 
-
-  uint16_t u_res = 0;
-  uint8_t *p_lhs = NULL;
-  uint8_t *p_rhs = NULL;
-
-  for (size_t s_val = 0; s_val < value.iSize; s_val++) {
-    p_result = (this->pDigits + s_val);
-    p_rhs    = (value.pDigits + s_val);
-    p_lhs    = p_digit;
-
-    for (size_t s_opr = 0; s_opr < s_old || u_res > 0; s_opr++, p_result++, p_lhs++) {
-      u_res   = (uint16_t)((*p_rhs) * (*p_lhs)) + u_res + (*p_result);
-      *p_result = (uint8_t)(u_res & 0xFF);
-      u_res   = (u_res >> CHAR_BITS);
-
-      WARNPRINT("u_res %04x, p_rhs %02x, p_lhs %02x, p_result %02x.\n", u_res, *p_rhs, *p_lhs, *p_result);
-    }
-  }
-  free(p_digit);
-  p_digit = NULL;
-
-  this->__applysize();
+  this->__operator_mul(value);
   return *this;
 }
 
