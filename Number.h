@@ -23,8 +23,12 @@ private:
 
   bool __isvalid() const;
 
+  bool __compare_greater(uint8_t *base_start, uint8_t *param_start, size_t size);
+  bool __compare_less(uint8_t *base_start, uint8_t *param_start, size_t size);
+  bool __compare_equal(uint8_t *base_start, uint8_t *param_start, size_t size);
+
   bool __operator_sum(const Number &param);
-  bool __operator_sub(const Number &param);
+  bool __operator_sub(const Number &param, bool __op = false);
   bool __operator_mul(const Number &param);
 
   template<class T>

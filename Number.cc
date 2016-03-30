@@ -133,6 +133,46 @@ bool Number::__isvalid() const
   return true;
 }
 
+bool Number::__compare_greater(uint8_t *base_start, uint8_t *param_start, size_t size)
+{
+  uint8_t * baseptr  = (base_start  + size - 1);
+  uint8_t * paramptr = (param_start + size - 1);
+
+  for (; baseptr >= base_start; baseptr--, paramptr--) {
+    if (*baseptr > *paramptr)
+      return true;
+    else if (*baseptr < *paramptr)
+      return false;
+  }
+  return false;
+}
+
+bool Number::__compare_less(uint8_t *base_start, uint8_t *param_start, size_t size)
+{
+  uint8_t *baseptr  = (base_start  + size - 1);
+  uint8_t *paramptr = (param_start + size - 1);
+
+  for(; baseptr >= base_start; baseptr--, paramptr--) {
+    if (*baseptr < *paramptr)
+      return true;
+    else if (*baseptr > *paramptr)
+      return false;
+  }
+  return false;
+}
+
+bool Number::__compare_equal(uint8_t *base_start, uint8_t *param_start, size_t size)
+{
+  uint8_t *baseptr  = (base_start  + size - 1);
+  uint8_t *paramptr = (param_start + size - 1);
+
+  for(; baseptr >= base_start; baseptr--, paramptr--) {
+    if (*baseptr != *paramptr)
+      return false;
+  }
+  return true;
+}
+
 bool Number::__operator_sum(const Number &param)
 {
   if (this == &param) {
@@ -178,7 +218,7 @@ bool Number::__operator_sum(const Number &param)
   return true;
 }
 
-bool Number::__operator_sub(const Number &param)
+bool Number::__operator_sub(const Number &param, bool __op)
 {
   if (this == &param) {
     WARNPRINT("Self operation not supported.\n");
@@ -196,25 +236,29 @@ bool Number::__operator_sub(const Number &param)
   }
 
   size_t nsize = MAX(this->iSize, param.iSize);
-  uint8_t *pardig = param.pDigits;
+  uint8_t *pardig = NULL;
   uint8_t *digits = NULL;
+  uint8_t *result = NULL;
   
   if (this->iSize != nsize) {
-    if (!this->__reallocate(nsize, &digits)) {
+    if (!this->__reallocate(nsize, &result)) {
       FAILPRINT("Error while memory reallocate.\n");
       return false;
     }
   } else {
-    digits = this->pDigits;
+    result = this->pDigits;
   }
 
+  pardig = __op ? this->pDigits : param.pDigits;
+  digits = __op ? param.pDigits : this->pDigits;
+
   uint8_t carry = 0;
-  for (size_t s = 0; s < nsize; s++, digits++) {
+  for (size_t s = 0; s < nsize; s++, digits++, result++, pardig++) {
     if (*digits < *pardig) {
-      *digits = (uint8_t)(((uint16_t)(1 << CHAR_BITS) | *digits) - *(pardig++) - carry); 
+      *result = (uint8_t)(((uint16_t)(1 << CHAR_BITS) | *digits) - *pardig - carry); 
       carry   = 0x01;
     } else {
-      *digits = (uint8_t)(*digits - *(pardig++) - carry);
+      *result = (uint8_t)(*digits - *pardig - carry);
       carry   = 0x00;
     }
   }
@@ -411,7 +455,7 @@ Number& Number::operator += (const Number &param)
 
 Number& Number::operator -= (const Number &rhs)
 {
-  this->__operator_sub(rhs);
+  this->__operator_sub(rhs, true);
   return *this;
 }
 
