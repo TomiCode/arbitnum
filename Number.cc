@@ -440,6 +440,74 @@ Number& Number::operator = (const Number &value)
   return *this;
 }
 
+bool Number::operator < (const Number &param)
+{
+  if (this->bNegative && !param.bNegative) {
+    return true;
+  } else if (!this->bNegative && param.bNegative) {
+    return false;
+  } else if (this->bNegative && param.bNegative) {
+    if (this->iSize > param.iSize) {
+      return true;
+    } else if (this->iSize < param.iSize) {
+      return false;
+    } else return this->__compare_greater(this->pDigits, param.pDigits, this->iSize);
+    
+  } else {
+    if (this->iSize < param.iSize) {
+      return true;
+    } else if (this->iSize > param.iSize) {
+      return false;
+    } else return this->__compare_less(this->pDigits, param.pDigits, this->iSize);
+  }
+}
+
+bool Number::operator > (const Number &param)
+{
+  if (!this->bNegative && param.bNegative) {
+    return true;
+  } else if (this->bNegative && !param.bNegative) {
+    return false;
+  } else if (this->bNegative && param.bNegative) {
+    if (this->iSize < param.iSize) {
+      return true;
+    } else if (this->iSize > param.iSize) {
+      return false;
+    } else return this->__compare_less(this->pDigits, param.pDigits, this->iSize);
+  } else {
+    if (this->iSize > param.iSize) {
+      return true;
+    } else if (this->iSize < param.iSize) {
+      return false;
+    } else return this->__compare_greater(this->pDigits, param.pDigits, this->iSize);
+  }
+}
+
+bool Number::operator >= (const Number &param)
+{
+  return !(this->operator<(param));
+}
+
+bool Number::operator <= (const Number &param)
+{
+  return !(this->operator>(param));
+}
+
+bool Number::operator == (const Number &param)
+{
+  if (this->bNegative != param.bNegative) {
+    return false;
+  } else if (this->iSize != param.iSize) {
+    return false;
+  }
+  return this->__compare_equal(this->pDigits, param.pDigits, this->iSize);
+}
+
+bool Number::operator != (const Number &param)
+{
+  return !(this->operator==(param));
+}
+
 Number& Number::operator += (const Number &param)
 {
   if ((this->bNegative && param.bNegative) || 
