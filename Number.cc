@@ -239,6 +239,7 @@ bool Number::__operator_sub(const Number &param, bool __op)
   uint8_t *pardig = NULL;
   uint8_t *digits = NULL;
   uint8_t *result = NULL;
+  bool     negate = false;
   
   if (this->iSize != nsize) {
     if (!this->__reallocate(nsize, &result)) {
@@ -247,6 +248,11 @@ bool Number::__operator_sub(const Number &param, bool __op)
     }
   } else {
     result = this->pDigits;
+  }
+
+  if (*this < param) {
+    __op = !__op;
+    this->bNegative = true;
   }
 
   pardig = __op ? this->pDigits : param.pDigits;
@@ -266,6 +272,7 @@ bool Number::__operator_sub(const Number &param, bool __op)
   if (!this->__applysize()) {
     FAILPRINT("Can not change allocated memory region.\n");
   }
+
   return true;
 }
 
@@ -510,26 +517,34 @@ bool Number::operator != (const Number &param)
 
 Number& Number::operator += (const Number &param)
 {
-  if ((this->bNegative && param.bNegative) || 
-      (!this->bNegative && !param.bNegative)) {
-    
+  if (this->bNegative == param.bNegative) {
     this->__operator_sum(param);
-    return *this;
+  } else if (this->bNegative && !param.bNegative) {
+    this->__operator_sub(param, true);
+  } else if (!this->bNegative && param.bNegative) {
+    this->__operator_sub(param, false);
   }
-  /* Negative number operation: WIP - doesn't work. :D */
-  this->__operator_sum(param);
+
   return *this;
 }
 
-Number& Number::operator -= (const Number &rhs)
+Number& Number::operator -= (const Number &param)
 {
-  this->__operator_sub(rhs, true);
+  if (!this->bNegative && !param.bNegative) {
+    this->__operator_sub(param, false);
+  } else if (this->bNegative && param.bNegative) {
+    this->__operator_sub(param, true);
+  } else {
+    this->__operator_sum(param);
+  }
+
   return *this;
 }
 
-Number& Number::operator *= (const Number &value)
+Number& Number::operator *= (const Number &param)
 {
-  this->__operator_mul(value);
+  this->bNegative = this->bNegative ^ param.bNegative;
+  this->__operator_mul(param);
   return *this;
 }
 
