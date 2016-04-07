@@ -23,6 +23,7 @@ private:
 
   bool __isvalid() const;
 
+  /* Comparison for equal sizes. Beware, no NULL protection. */
   bool __compare_greater(uint8_t *base_start, uint8_t *param_start, size_t size);
   bool __compare_less(uint8_t *base_start, uint8_t *param_start, size_t size);
   bool __compare_equal(uint8_t *base_start, uint8_t *param_start, size_t size);

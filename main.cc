@@ -12,11 +12,6 @@ int main(int argc, char ** argv)
 
   a = 12;
   b = 15;
-  // a = 0x15263748U;
-  // c = 0x03;
-  // b = 0x046219U;
-  
-  //printf("%x %x %lx.\n", 0x15263748U, 0x046219U, 0x15263748LU - 0x046219LU);
   printf("%x %x %x.\n", 12, 15, 15 - 12);
   a -= b;
   

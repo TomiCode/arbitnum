@@ -239,7 +239,6 @@ bool Number::__operator_sub(const Number &param, bool __op)
   uint8_t *pardig = NULL;
   uint8_t *digits = NULL;
   uint8_t *result = NULL;
-  bool     negate = false;
   
   if (this->iSize != nsize) {
     if (!this->__reallocate(nsize, &result)) {
@@ -332,6 +331,60 @@ bool Number::__operator_mul(const Number &param)
     FAILPRINT("Can not change allocated result size.\n");
   }
   return true;
+}
+
+bool Number::__operator_div(Number &param)
+{
+  if (this == &param) {
+    FAILPRINT("Self operation not supported.\n");
+    return false;
+  }
+
+  if (!this->__isvalid()) {
+    FAILPRINT("Invalid self.\n");
+    return false;
+  }
+
+  if (!param.__isvalid()) {
+    FAILPRINT("Operator param invalid.\n");
+    return false;
+  }
+
+  size_t sres = MAX(this->iSize, param.iSize);
+  uint8_t * result = (uint8_t*)malloc(sizeof(uint8_t) * sres);
+  if (result == NULL) {
+    FAILPRINT("Can not allocate result digits.\n");
+    return false;
+  }
+
+  memset(result, 0, sizeof(uint8_t) * sres);
+  
+  uint8_t *resdig = result + sres - 1;
+  uint8_t *pardig = NULL; // Need I this pointer? Parameter digits?
+  uint8_t *digits = NULL;
+
+  // ------ <- result buffer
+  // 123456 <- number to division (this, digits).
+  // 12 <- dividend, current parameter.
+  // 
+
+  uint16_t carry = 0;
+
+  while( resdig >= result ) {
+    if (this->__compare_less(digits, param.pDigits, param.iSize)) {
+      resdig--;
+      digits--;
+
+      continue;
+    }
+    
+    for(size_t sz = 0; sz < param.iSize; sz++) {
+      
+    } // substraction of parameters.
+    (*resdig)++;
+  }
+
+  // TODO: no return value. xD
 }
 
 template<class T>
