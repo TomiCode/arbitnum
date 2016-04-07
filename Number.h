@@ -31,6 +31,7 @@ private:
   bool __operator_sum(const Number &param);
   bool __operator_sub(const Number &param, bool __op = false);
   bool __operator_mul(const Number &param);
+  bool __operator_div(const Number &param);
 
   template<class T>
     bool readStdType(T value);
@@ -70,6 +71,7 @@ public:
   Number& operator += (const Number &rhs);
   Number& operator -= (const Number &rhs);
   Number& operator *= (const Number &rhs);
+  Number& operator /= (const Number &rhs);
   const Number operator * (const Number &value);
   const Number operator + (const Number &value);
   const Number operator - (const Number &value);

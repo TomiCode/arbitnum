@@ -333,7 +333,7 @@ bool Number::__operator_mul(const Number &param)
   return true;
 }
 
-bool Number::__operator_div(Number &param)
+bool Number::__operator_div(const Number &param)
 {
   if (this == &param) {
     FAILPRINT("Self operation not supported.\n");
@@ -350,8 +350,13 @@ bool Number::__operator_div(Number &param)
     return false;
   }
 
+  if (this->iSize < param.iSize) {
+    FAILPRINT("Parameter has more digits!\n");
+    return false;
+  }
+
   size_t sres = MAX(this->iSize, param.iSize);
-  uint8_t * result = (uint8_t*)malloc(sizeof(uint8_t) * sres);
+  uint8_t * const result = (uint8_t*)malloc(sizeof(uint8_t) * sres);
   if (result == NULL) {
     FAILPRINT("Can not allocate result digits.\n");
     return false;
@@ -359,32 +364,72 @@ bool Number::__operator_div(Number &param)
 
   memset(result, 0, sizeof(uint8_t) * sres);
   
-  uint8_t *resdig = result + sres - 1;
-  uint8_t *pardig = NULL; // Need I this pointer? Parameter digits?
-  uint8_t *digits = NULL;
+  size_t  operand = param.iSize;
+  uint8_t *digits = this->pDigits + (this->iSize - param.iSize);
+  uint8_t *resdig = result + (sres - param.iSize);
+  uint8_t *pardig = NULL; // this will always point to start of param.pDigits.
+  uint8_t *oprdig = NULL; // substraction digits;
 
-  // ------ <- result buffer
-  // 123456 <- number to division (this, digits).
-  // 12 <- dividend, current parameter.
-  // 
+  uint8_t carry = 0;
 
-  uint16_t carry = 0;
+  for (; digits >= this->pDigits; ) {
+    // INFOPRINT("Starting div loop.\n");
 
-  while( resdig >= result ) {
-    if (this->__compare_less(digits, param.pDigits, param.iSize)) {
+    if (operand > param.iSize) {
+      for (oprdig = (digits + operand - 1); *oprdig == 0 && oprdig > digits; oprdig--) {
+        operand--;
+      }
+
+    } else if (operand == param.iSize && this->__compare_less(digits, param.pDigits, param.iSize)) {
+      oprdig = digits;
+      for (size_t pr = 0; pr < param.iSize; pr++, oprdig++) {
+        if (*oprdig != 0) {
+          operand++;
+          break;
+        }
+      }
+
       resdig--;
       digits--;
 
+      // INFOPRINT("Divider less, operand size: %lu.\n", operand);
       continue;
     }
+
+    pardig = param.pDigits;
+    oprdig = digits;
+
+    for(size_t sp = 0; sp < operand; sp++, oprdig++, pardig++) {
+      // INFOPRINT("Currens size: %lu.\n", sp);
+      if (sp < param.iSize) {
+        if (*oprdig < *pardig) {
+          *oprdig = (uint8_t)(((uint16_t)(1 << CHAR_BITS) | *oprdig) - *pardig - carry); 
+          carry   = 0x01;
+        } else {
+          *oprdig = (uint8_t)(*oprdig - *pardig - carry);
+          carry   = 0x00;
+        }
+      } else {
+        *oprdig = (uint8_t)(*oprdig - carry);
+        carry   = 0x00;
+      }
+    }
     
-    for(size_t sz = 0; sz < param.iSize; sz++) {
-      
-    } // substraction of parameters.
+    if (carry == 0x01) {
+      WARNPRINT("After substraction carry is set!\n");
+    }
+    // INFOPRINT("Current value increment: %d\n", *resdig);
     (*resdig)++;
   }
 
-  // TODO: no return value. xD
+  WARNPRINT("Removing operand digits!\n");
+  free(this->pDigits);
+  this->pDigits = result;
+  this->iSize   = sres;
+
+  this->__applysize();
+
+  return true;
 }
 
 template<class T>
@@ -598,6 +643,12 @@ Number& Number::operator *= (const Number &param)
 {
   this->bNegative = this->bNegative ^ param.bNegative;
   this->__operator_mul(param);
+  return *this;
+}
+
+Number& Number::operator /= (const Number &param)
+{
+  this->__operator_div(param);
   return *this;
 }
 

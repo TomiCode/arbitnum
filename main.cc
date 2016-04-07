@@ -10,11 +10,11 @@ int main(int argc, char ** argv)
   Number b;
   // Number c;
 
-  a = 12;
-  b = 15;
-  printf("%x %x %x.\n", 12, 15, 15 - 12);
-  a -= b;
+  a = 0x15151507;
+  b = 0x0A;
+  printf("%x %x %x.\n", 0x15151507, 0x0A, 0x15151507 / 0x0A);
   
+  a /= b;
   // printf("--- Drawing result for 'a':\n");
   a.PrintHex();
   b.PrintHex();
