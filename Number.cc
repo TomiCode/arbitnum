@@ -173,6 +173,65 @@ bool Number::__compare_equal(uint8_t *base_start, uint8_t *param_start, size_t s
   return true;
 }
 
+inline void Number::__internal_add(uint8_t *operand, size_t operand_size, uint8_t *param, size_t param_size)
+{
+  uint16_t result = 0;
+
+  for(size_t sz = 0; sz < operand_size; sz++, operand++) {
+    if (sz < param_size) {
+      result    = ((uint16_t)(*operand + *(param++))) + result;
+      *operand  = (uint8_t)(result & 0xFF);
+      result    = (uint8_t)(result >> CHAR_BITS);
+    } else if (result != 0) {
+      result    = ((uint16_t)(*operand)) + result;
+      *operand  = (uint8_t)(result & 0xFF);
+      result    = (uint8_t)(result >> CHAR_BITS);
+    } else break;
+  }
+}
+
+inline void Number::__internal_sub(uint8_t *operand, size_t operand_size, uint8_t *param, size_t param_size, uint8_t *result)
+{
+  uint8_t carry = 0;
+  
+  for (size_t sz = 0; sz < operand_size; sz++, operand++, param++, result++) {
+    if (sz < param_size) {
+      if (*operand < *param) {
+        *result = (uint8_t)(((uint16_t)(1 << CHAR_BITS) | *operand) - *param - carry);
+        carry   = 0x01;
+      } else {
+        *result = (uint8_t)(*operand - *param - carry);
+        carry   = 0x00;
+      }
+    } else {
+      *result = (uint8_t)(*operand - carry);
+      carry   = 0x00;
+    }
+  }
+}
+
+void Number::__digit_sum(uint8_t param)
+{
+  if (param == 0) return;
+  
+  // TODO: check if there is space to add this value.
+  this->__internal_add(this->pDigits, this->iSize, &param, sizeof(uint8_t));
+}
+
+void Number::__digit_mul(uint8_t param)
+{
+  if (param <= 1) return;
+
+  uint8_t *digits = this->pDigits;
+  uint16_t result = 0;
+
+  for (size_t so = 0; so < this->iSize || result > 0; so++, digits++) {
+    result  = ((uint16_t)(param * (*digits)) + result);
+    *digits = (uint8_t)(result & 0xFF);
+    result  = (result >> CHAR_BITS);
+  }
+}
+
 bool Number::__operator_sum(const Number &param)
 {
   if (this == &param) {
@@ -190,16 +249,18 @@ bool Number::__operator_sum(const Number &param)
     return false;
   }
 
-  size_t   nsize  = MAX(this->iSize, param.iSize) + 1;
-  uint8_t *pardig = param.pDigits;
-  uint8_t *digits = NULL;
-  uint16_t result = 0;
+  // size_t nsize = MAX(this->iSize, param.iSize) + 1;
+  // uint8_t *pardig = param.pDigits;
+  // uint8_t *digits = NULL;
+  // uint16_t result = 0;
 
-  if (!this->__reallocate(nsize, &digits)) {
+  if (!this->__reallocate(MAX(this->iSize, param.iSize) + 1, NULL)) {
     FAILPRINT("Can not reallocate memory.\n");
     return false;
   }
 
+  this->__internal_add(this->pDigits, this->iSize, param.pDigits, param.iSize);
+  /*
   for (size_t s = 0; s < nsize; s++, digits++) {
     if (s < param.iSize) {
       result  = ((uint16_t)(*digits + *(pardig++))) + result;
@@ -211,9 +272,9 @@ bool Number::__operator_sum(const Number &param)
       result  = (uint8_t)(result >> CHAR_BITS);
     } else break;
   }
-  
+  */
   if (!this->__applysize()) {
-    FAILPRINT("Can not change allocated memory region.\n");
+    FAILPRINT("Error while shrinking of memory allocation.\n");
   }
   return true;
 }
@@ -236,8 +297,6 @@ bool Number::__operator_sub(const Number &param, bool __op)
   }
 
   size_t nsize = MAX(this->iSize, param.iSize);
-  uint8_t *pardig = NULL;
-  uint8_t *digits = NULL;
   uint8_t *result = NULL;
   
   if (this->iSize != nsize) {
@@ -254,24 +313,13 @@ bool Number::__operator_sub(const Number &param, bool __op)
     this->bNegative = true;
   }
 
-  pardig = __op ? this->pDigits : param.pDigits;
-  digits = __op ? param.pDigits : this->pDigits;
-
-  uint8_t carry = 0;
-  for (size_t s = 0; s < nsize; s++, digits++, result++, pardig++) {
-    if (*digits < *pardig) {
-      *result = (uint8_t)(((uint16_t)(1 << CHAR_BITS) | *digits) - *pardig - carry); 
-      carry   = 0x01;
-    } else {
-      *result = (uint8_t)(*digits - *pardig - carry);
-      carry   = 0x00;
-    }
-  }
+  this->__internal_sub((__op ? param.pDigits : this->pDigits),
+          this->iSize, (__op ? this->pDigits : param.pDigits), 
+          param.iSize, result);
 
   if (!this->__applysize()) {
     FAILPRINT("Can not change allocated memory region.\n");
   }
-
   return true;
 }
 
@@ -312,6 +360,7 @@ bool Number::__operator_mul(const Number &param)
     digits = this->pDigits;
 
     WARNPRINT("Starting %02lu cycle.\n", ps);
+    // TODO: Check this || statement, cause it's a bit weird.. ?
     for (size_t so = 0; so < this->iSize || result > 0; so++, digits++, resdig++) {
       result  = ((uint16_t)((*pardig) * (*digits)) + result + (*resdig));
       *resdig = (uint8_t)(result & 0xFF);
@@ -365,21 +414,21 @@ bool Number::__operator_div(const Number &param)
   memset(result, 0, sizeof(uint8_t) * sres);
   
   size_t  operand = param.iSize;
+  uint8_t carry   = 0;
+
   uint8_t *digits = this->pDigits + (this->iSize - param.iSize);
   uint8_t *resdig = result + (sres - param.iSize);
-  uint8_t *pardig = NULL; // this will always point to start of param.pDigits.
-  uint8_t *oprdig = NULL; // substraction digits;
-
-  uint8_t carry = 0;
+  uint8_t *oprdig = NULL;
 
   for (; digits >= this->pDigits; ) {
-    // INFOPRINT("Starting div loop.\n");
-
     if (operand > param.iSize) {
       for (oprdig = (digits + operand - 1); *oprdig == 0 && oprdig > digits; oprdig--) {
         operand--;
       }
-
+    } else if (operand < param.iSize) {
+      resdig--;
+      digits--;
+      operand++;
     } else if (operand == param.iSize && this->__compare_less(digits, param.pDigits, param.iSize)) {
       oprdig = digits;
       for (size_t pr = 0; pr < param.iSize; pr++, oprdig++) {
@@ -388,47 +437,22 @@ bool Number::__operator_div(const Number &param)
           break;
         }
       }
-
       resdig--;
       digits--;
-
-      // INFOPRINT("Divider less, operand size: %lu.\n", operand);
       continue;
     }
 
-    pardig = param.pDigits;
-    oprdig = digits;
-
-    for(size_t sp = 0; sp < operand; sp++, oprdig++, pardig++) {
-      // INFOPRINT("Currens size: %lu.\n", sp);
-      if (sp < param.iSize) {
-        if (*oprdig < *pardig) {
-          *oprdig = (uint8_t)(((uint16_t)(1 << CHAR_BITS) | *oprdig) - *pardig - carry); 
-          carry   = 0x01;
-        } else {
-          *oprdig = (uint8_t)(*oprdig - *pardig - carry);
-          carry   = 0x00;
-        }
-      } else {
-        *oprdig = (uint8_t)(*oprdig - carry);
-        carry   = 0x00;
-      }
-    }
-    
-    if (carry == 0x01) {
-      WARNPRINT("After substraction carry is set!\n");
-    }
-    // INFOPRINT("Current value increment: %d\n", *resdig);
+    this->__internal_sub(digits, operand, param.pDigits, param.iSize, digits);
     (*resdig)++;
   }
 
   WARNPRINT("Removing operand digits!\n");
   free(this->pDigits);
+
   this->pDigits = result;
   this->iSize   = sres;
-
   this->__applysize();
-
+  
   return true;
 }
 
@@ -519,6 +543,31 @@ void Number::operator = (const int8_t value)
 void Number::operator = (const uint8_t value)
 {
   this->readStdType<uint8_t>(value);
+}
+
+void Number::operator = (const char * buffer)
+{
+  if (*buffer == '-') {
+    this->bNegative = true;
+    buffer++;
+  }
+
+  size_t nsize = strlen(buffer);
+  INFOPRINT("Number buffer size: %lu.\n", nsize);
+
+  nsize = (size_t)((LOG_2_10 * nsize) / CHAR_BITS) + 1;
+  if (!this->__allocate(nsize, NULL)) {
+    FAILPRINT("Can not create digits buffer.\n");
+    return;
+  }
+  memset(this->pDigits, 0, sizeof(uint8_t) * nsize);
+
+  INFOPRINT("Allocated %lu, for number.\n", nsize);
+  for(; *buffer != 0; buffer++) {
+     this->__digit_mul(10);
+     this->__digit_sum(*buffer - '0');
+  }
+  this->__applysize();
 }
 
 Number& Number::operator = (const Number &value)
@@ -648,21 +697,28 @@ Number& Number::operator *= (const Number &param)
 
 Number& Number::operator /= (const Number &param)
 {
+  this->bNegative = this->bNegative ^ param.bNegative;
   this->__operator_div(param);
   return *this;
 }
 
-const Number Number::operator * (const Number &value)
+const Number Number::operator + (const Number &param)
 {
-  return Number(*this) *= value;
+  return Number(*this) += param;
 }
 
-const Number Number::operator - (const Number &value)
+const Number Number::operator - (const Number &param)
 {
-  return Number(*this) -= value;
+  return Number(*this) -= param;
 }
 
-const Number Number::operator + (const Number &value)
+const Number Number::operator * (const Number &param)
 {
-  return Number(*this) += value;
+  return Number(*this) *= param;
 }
+
+const Number Number::operator / (const Number &param)
+{
+  return Number(*this) /= param;
+}
+

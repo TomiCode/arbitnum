@@ -1,6 +1,8 @@
 #ifndef NUMBER_H
 #define NUMBER_H
 
+#define LOG_2_10 3.32192809488736234
+
 #define CHAR_BITS 8
 #define MIN(a,b) (((a < b)) ? (a) : (b))
 #define MAX(a,b) (((a > b)) ? (a) : (b))
@@ -28,6 +30,16 @@ private:
   bool __compare_less(uint8_t *base_start, uint8_t *param_start, size_t size);
   bool __compare_equal(uint8_t *base_start, uint8_t *param_start, size_t size);
 
+  inline void __internal_add(uint8_t *operand, size_t operand_size, uint8_t *param, size_t param_size);
+  inline void __internal_sub(uint8_t *operand, size_t operand_size, uint8_t *param, size_t param_size, uint8_t *result);
+
+  /* For small operations like Number * 10, etc. */
+  /* Of course, for internal usage only, nobody should use this else where, */
+  /* Probably I'll use this for decimal conversions ;) */
+  void __digit_sum(uint8_t param);
+  void __digit_mul(uint8_t param);
+  // bool __digit_div(const uint8_t param);
+
   bool __operator_sum(const Number &param);
   bool __operator_sub(const Number &param, bool __op = false);
   bool __operator_mul(const Number &param);
@@ -54,27 +66,30 @@ public:
   void operator = (const uint8_t value);
   
   /* Assign char buffer as number. */
-  // bool operator = (const char * buffer);
+  void operator = (const char * buffer);
 
   /* Assign number to number. Copy digits. */
   Number& operator = (const Number &value);
 
   /* Comparison operators. */
-  bool operator <  (const Number &rhs);
-  bool operator >  (const Number &rhs);
-  bool operator <= (const Number &rhs);
-  bool operator >= (const Number &rhs);
+  bool operator <  (const Number &param);
+  bool operator >  (const Number &param);
+  bool operator <= (const Number &param);
+  bool operator >= (const Number &param);
   
-  bool operator == (const Number &rhs);
-  bool operator != (const Number &rhs);
+  bool operator == (const Number &param);
+  bool operator != (const Number &param);
 
-  Number& operator += (const Number &rhs);
-  Number& operator -= (const Number &rhs);
-  Number& operator *= (const Number &rhs);
-  Number& operator /= (const Number &rhs);
-  const Number operator * (const Number &value);
-  const Number operator + (const Number &value);
-  const Number operator - (const Number &value);
+  Number& operator += (const Number &param);
+  Number& operator -= (const Number &param);
+  Number& operator *= (const Number &param);
+  Number& operator /= (const Number &param);
+  
+  const Number operator + (const Number &param);
+  const Number operator - (const Number &param);
+  const Number operator * (const Number &param);
+  const Number operator / (const Number &param);
+
 };
 
 #endif
