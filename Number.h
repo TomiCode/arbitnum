@@ -38,7 +38,7 @@ private:
   /* Probably I'll use this for decimal conversions ;) */
   void __digit_sum(uint8_t param);
   void __digit_mul(uint8_t param);
-  // bool __digit_div(const uint8_t param);
+  void __digit_div(uint8_t param);
 
   bool __operator_sum(const Number &param);
   bool __operator_sub(const Number &param, bool __op = false);
@@ -90,6 +90,8 @@ public:
   const Number operator * (const Number &param);
   const Number operator / (const Number &param);
 
+
+  void TestIt(uint8_t param);
 };
 
 #endif

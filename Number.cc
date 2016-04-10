@@ -232,6 +232,63 @@ void Number::__digit_mul(uint8_t param)
   }
 }
 
+void Number::__digit_div(uint8_t param)
+{
+
+  uint16_t result  = 0;
+  uint8_t  resbyte = 0;
+  uint8_t  *digits = this->pDigits + (this->iSize - sizeof(uint8_t)); 
+  uint8_t  *oprdig = NULL;
+  uint8_t  operand = sizeof(uint8_t);
+
+  for (; digits >= this->pDigits; ) {
+    if (operand > sizeof(uint8_t)) {
+      if (result <= 0) operand = 1;
+
+    } else if (operand < sizeof(uint8_t)) {
+      // resdig--;
+      digits--;
+      operand = 1;
+      // operand++;
+    } else if (operand == sizeof(uint8_t) && *digits < param) {
+      // oprdig = digits;
+      // for (size_t pr = 0; pr < param.iSize; pr++, oprdig++) {
+      //  if (*oprdig != 0) {
+      //    operand++;
+      //    break;
+      //  }
+      // }
+      operand = 2;
+      result  = *digits;
+      *digits = resbyte;
+      resbyte = 0;
+      // resdig--;
+      digits--;
+      continue;
+    }
+
+    uint8_t carry = 0;
+  
+    for (size_t sz = 0; sz < operand; sz++) {
+      if (sz < sizeof(uint8_t)) {
+        if (*digits < param) {
+          *digits = (uint8_t)(((uint16_t)(1 << CHAR_BITS) | *digits) - param);
+          carry   = 0x01;
+        } else {
+          *digits = (uint8_t)(*digits - param);
+          carry   = 0x00;
+        }
+      } else {
+        result -= carry;
+        // result = (uint8_t)(result - carry);
+        // carry   = 0x00;
+      }
+    }
+    // this->__internal_sub(digits, operand, param.pDigits, param.iSize, digits);
+    resbyte++;
+  }
+}
+
 bool Number::__operator_sum(const Number &param)
 {
   if (this == &param) {
@@ -249,30 +306,12 @@ bool Number::__operator_sum(const Number &param)
     return false;
   }
 
-  // size_t nsize = MAX(this->iSize, param.iSize) + 1;
-  // uint8_t *pardig = param.pDigits;
-  // uint8_t *digits = NULL;
-  // uint16_t result = 0;
-
   if (!this->__reallocate(MAX(this->iSize, param.iSize) + 1, NULL)) {
     FAILPRINT("Can not reallocate memory.\n");
     return false;
   }
 
   this->__internal_add(this->pDigits, this->iSize, param.pDigits, param.iSize);
-  /*
-  for (size_t s = 0; s < nsize; s++, digits++) {
-    if (s < param.iSize) {
-      result  = ((uint16_t)(*digits + *(pardig++))) + result;
-      *digits = (uint8_t)(result & 0xFF);
-      result  = (uint8_t)(result >> CHAR_BITS); 
-    } else if (result != 0) {
-      result  = ((uint16_t)(*digits)) + result;
-      *digits = (uint8_t)(result & 0xFF);
-      result  = (uint8_t)(result >> CHAR_BITS);
-    } else break;
-  }
-  */
   if (!this->__applysize()) {
     FAILPRINT("Error while shrinking of memory allocation.\n");
   }
@@ -722,3 +761,7 @@ const Number Number::operator / (const Number &param)
   return Number(*this) /= param;
 }
 
+void Number::TestIt(uint8_t param)
+{
+  this->__digit_div(param);
+}
