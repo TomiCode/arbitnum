@@ -232,60 +232,26 @@ void Number::__digit_mul(uint8_t param)
   }
 }
 
-void Number::__digit_div(uint8_t param)
+void Number::__safe_small_div(uint8_t *array, size_t size, uint8_t param, uint8_t *mod)
 {
+  uint8_t *digits = array + size - 1;
+  uint16_t operand = *digits;
+  uint8_t result = 0;
 
-  uint16_t result  = 0;
-  uint8_t  resbyte = 0;
-  uint8_t  *digits = this->pDigits + (this->iSize - sizeof(uint8_t)); 
-  uint8_t  *oprdig = NULL;
-  uint8_t  operand = sizeof(uint8_t);
-
-  for (; digits >= this->pDigits; ) {
-    if (operand > sizeof(uint8_t)) {
-      if (result <= 0) operand = 1;
-
-    } else if (operand < sizeof(uint8_t)) {
-      // resdig--;
-      digits--;
-      operand = 1;
-      // operand++;
-    } else if (operand == sizeof(uint8_t) && *digits < param) {
-      // oprdig = digits;
-      // for (size_t pr = 0; pr < param.iSize; pr++, oprdig++) {
-      //  if (*oprdig != 0) {
-      //    operand++;
-      //    break;
-      //  }
-      // }
-      operand = 2;
-      result  = *digits;
-      *digits = resbyte;
-      resbyte = 0;
-      // resdig--;
-      digits--;
+  while (digits >= array) { 
+    if (operand < param) {
+      *digits = result;
+      result  = 0;
+      operand = (operand << CHAR_BITS) | *(--digits);
       continue;
+    } else {
+      operand = (operand - param);
+      result++;
     }
+  }
 
-    uint8_t carry = 0;
-  
-    for (size_t sz = 0; sz < operand; sz++) {
-      if (sz < sizeof(uint8_t)) {
-        if (*digits < param) {
-          *digits = (uint8_t)(((uint16_t)(1 << CHAR_BITS) | *digits) - param);
-          carry   = 0x01;
-        } else {
-          *digits = (uint8_t)(*digits - param);
-          carry   = 0x00;
-        }
-      } else {
-        result -= carry;
-        // result = (uint8_t)(result - carry);
-        // carry   = 0x00;
-      }
-    }
-    // this->__internal_sub(digits, operand, param.pDigits, param.iSize, digits);
-    resbyte++;
+  if (mod != NULL) {
+    *mod = (uint8_t)(operand >> CHAR_BITS);
   }
 }
 
@@ -761,7 +727,57 @@ const Number Number::operator / (const Number &param)
   return Number(*this) /= param;
 }
 
-void Number::TestIt(uint8_t param)
+/* Not very digit precise.. but it should work. */
+size_t Number::c_str_size()
 {
-  this->__digit_div(param);
+  return (size_t)(LOG_10_2 * CHAR_BITS * this->iSize + 1);
+}
+
+char * Number::c_str(char *buffer, size_t size)
+{
+  if (buffer == NULL)
+    return NULL;
+
+  if (size < this->c_str_size()) {
+    FAILPRINT("Character buffer to small.\n");
+    return NULL;
+  }
+
+  size_t  csize = this->iSize;
+
+  char *buff = buffer;
+  char *ending = NULL;
+
+  uint8_t *digits = (uint8_t*)malloc(sizeof(uint8_t) * this->iSize);
+  uint8_t *param = NULL;
+  uint8_t  result = 0;
+
+  if (digits == NULL) {
+    FAILPRINT("Can not allocate temporary work buffer!\n");
+    return NULL;
+  }
+  memcpy(digits, this->pDigits, this->iSize);
+  
+  while (csize > 0) {
+    this->__safe_small_div(digits, csize, 10, &result);
+    *(buff++) = result + '0';
+    for (param = (digits + csize - 1); param >= digits; param--) {
+      if (*param != 0) break;
+      else csize--;
+    }
+  }
+
+  if (this->bNegative) {
+    *(buff++) = '-';
+  }
+  *buff = '\0';
+  ending = (--buff);
+  
+  for (buff = buffer; ending > buff; ending--, buff++) {
+    result = *buff;
+    *buff = *ending;
+    *ending = result;
+  }
+  free(digits);
+  return buffer;
 }

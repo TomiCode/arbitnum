@@ -1,6 +1,7 @@
 #ifndef NUMBER_H
 #define NUMBER_H
 
+#define LOG_10_2 0.30102999566398119
 #define LOG_2_10 3.32192809488736234
 
 #define CHAR_BITS 8
@@ -38,7 +39,8 @@ private:
   /* Probably I'll use this for decimal conversions ;) */
   void __digit_sum(uint8_t param);
   void __digit_mul(uint8_t param);
-  void __digit_div(uint8_t param);
+
+  void __safe_small_div(uint8_t *array, size_t size, uint8_t param, uint8_t *mod);
 
   bool __operator_sum(const Number &param);
   bool __operator_sub(const Number &param, bool __op = false);
@@ -90,8 +92,8 @@ public:
   const Number operator * (const Number &param);
   const Number operator / (const Number &param);
 
-
-  void TestIt(uint8_t param);
+  size_t c_str_size();
+  char * c_str(char * buffer, size_t size);
 };
 
 #endif
