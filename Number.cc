@@ -13,7 +13,7 @@ Number::Number(const Number &copy)
   this->pDigits   = NULL;
   this->iSize     = 0;
   this->bNegative = false;
-
+  
   if (copy.iSize <= 0 || copy.pDigits == NULL)
     return;
 
@@ -555,6 +555,8 @@ void Number::operator = (const char * buffer)
   if (*buffer == '-') {
     this->bNegative = true;
     buffer++;
+  } else {
+    this->bNegative = false;
   }
 
   size_t nsize = strlen(buffer);
@@ -569,6 +571,7 @@ void Number::operator = (const char * buffer)
 
   INFOPRINT("Allocated %lu, for number.\n", nsize);
   for(; *buffer != 0; buffer++) {
+     if(*buffer == '=') continue; // No more Please, this is stupid as hell. 
      this->__digit_mul(10);
      this->__digit_sum(*buffer - '0');
   }
@@ -781,3 +784,4 @@ char * Number::c_str(char *buffer, size_t size)
   free(digits);
   return buffer;
 }
+
