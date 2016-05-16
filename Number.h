@@ -19,6 +19,8 @@ private:
   bool     bNegative;
   size_t   iSize;
 
+  void __init();
+
   bool __allocate(size_t size, uint8_t ** out_ptr);
   bool __reallocate(size_t size, uint8_t ** out_ptr);
   bool __cpymemory(void *ptr, size_t size);
@@ -41,34 +43,42 @@ private:
   void __digit_mul(uint8_t param);
 
   void __safe_small_div(uint8_t *array, size_t size, uint8_t param, uint8_t *mod);
+  void __safe_small_mul(uint8_t *digits, size_t size, uint8_t val, size_t *valid_size);
 
   bool __operator_sum(const Number &param);
   bool __operator_sub(const Number &param, bool __op = false);
   bool __operator_mul(const Number &param);
   bool __operator_div(const Number &param);
 
-  template<class T>
+  template<typename T>
     bool readStdType(T value);
 
 public:
   Number();
   Number(const Number &copy);
+  Number(const int value);
+  Number(const long value);
+  Number(const long long value);
+  Number(const unsigned int value);
+  Number(const unsigned long value);
+  Number(const unsigned long long value);
+  Number(const char * buffer);
+  
   ~Number();
 
+  /* Number memory view. */
   void PrintHex();
-
+  
   /* Assign standard C/C++ types. */
-  void operator = (const int64_t value);
-  void operator = (const uint64_t value);
-  void operator = (const int32_t value);
-  void operator = (const uint32_t value);
-  void operator = (const int16_t value);
-  void operator = (const uint16_t value);
-  void operator = (const int8_t value);
-  void operator = (const uint8_t value);
+  Number& operator = (const int value);
+  Number& operator = (const unsigned int value);
+  Number& operator = (const long value);
+  Number& operator = (const unsigned long value);
+  Number& operator = (const long long value);
+  Number& operator = (const unsigned long long value);
   
   /* Assign char buffer as number. */
-  void operator = (const char * buffer);
+  Number& operator = (const char * buffer);
 
   /* Assign number to number. Copy digits. */
   Number& operator = (const Number &value);
@@ -94,6 +104,8 @@ public:
 
   size_t c_str_size();
   char * c_str(char * buffer, size_t size);
+
+  void testIt();
 };
 
 #endif

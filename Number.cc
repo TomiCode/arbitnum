@@ -3,16 +3,12 @@
 
 Number::Number()
 {
-  this->pDigits   = NULL;
-  this->iSize     = 0;
-  this->bNegative = false;
+  this->__init();
 }
 
 Number::Number(const Number &copy)
 {
-  this->pDigits   = NULL;
-  this->iSize     = 0;
-  this->bNegative = false;
+  this->__init();
   
   if (copy.iSize <= 0 || copy.pDigits == NULL)
     return;
@@ -28,11 +24,63 @@ Number::Number(const Number &copy)
   }
 }
 
+Number::Number(const int value)
+{
+  this->__init();
+  this->readStdType<int>(value);
+}
+
+Number::Number(const long value)
+{
+  this->__init();
+  this->readStdType<long>(value);
+}
+
+Number::Number(const long long value)
+{
+  this->__init();
+  this->readStdType<uint64_t>(value);
+}
+
+Number::Number(const unsigned int value)
+{
+  this->__init();
+  this->readStdType<unsigned int>(value);
+}
+
+Number::Number(const unsigned long value)
+{
+  this->__init();
+  this->readStdType<unsigned long>(value);
+}
+
+Number::Number(const unsigned long long value)
+{
+  this->__init();
+  this->readStdType<unsigned long long>(value);
+}
+
+Number::Number(const char * buffer)
+{
+  this->pDigits   = NULL;
+  this->iSize     = 0;
+  this->bNegative = 0;
+
+  this->operator=(buffer);
+}
+
 Number::~Number()
 {
   if (this->pDigits != NULL) {
     free(this->pDigits);
   }
+}
+
+void Number::__init()
+{
+  this->pDigits   = NULL;
+  this->iSize     = 0;
+  this->bNegative = false;
 }
 
 bool Number::__allocate(size_t size, uint8_t ** out_ptr)
@@ -193,10 +241,9 @@ inline void Number::__internal_add(uint8_t *operand, size_t operand_size, uint8_
 inline void Number::__internal_sub(uint8_t *operand, size_t operand_size, uint8_t *param, size_t param_size, uint8_t *result)
 {
   uint8_t carry = 0;
-  
   for (size_t sz = 0; sz < operand_size; sz++, operand++, param++, result++) {
     if (sz < param_size) {
-      if (*operand < *param) {
+      if (*operand < (*param + carry)) {
         *result = (uint8_t)(((uint16_t)(1 << CHAR_BITS) | *operand) - *param - carry);
         carry   = 0x01;
       } else {
@@ -234,9 +281,9 @@ void Number::__digit_mul(uint8_t param)
 
 void Number::__safe_small_div(uint8_t *array, size_t size, uint8_t param, uint8_t *mod)
 {
-  uint8_t *digits = array + size - 1;
+  uint8_t  *digits = (array + size - 1);
   uint16_t operand = *digits;
-  uint8_t result = 0;
+  uint8_t  result  = 0;
 
   while (digits >= array) { 
     if (operand < param) {
@@ -253,6 +300,33 @@ void Number::__safe_small_div(uint8_t *array, size_t size, uint8_t param, uint8_
   if (mod != NULL) {
     *mod = (uint8_t)(operand >> CHAR_BITS);
   }
+}
+
+void Number::__safe_small_mul(uint8_t *digits, size_t size, uint8_t val, size_t *valid_size)
+{
+  if (digits == NULL) {
+    FAILPRINT("Can not access digits pointer.\n");
+    return;
+  }
+
+  uint16_t result  = 0;
+  uint8_t  *base_ptr = digits;
+
+  for (size_t sz = 0; sz < size || result > 0; sz++, digits++) {
+    if (size > sz) {
+      result = ((uint16_t)(*digits) * val) + result;
+    }
+    *digits = (uint8_t)(result & 0xFF);
+    result  = (uint8_t)(result >> CHAR_BITS);
+  }
+
+  *valid_size = size;
+  for (uint8_t *base = (base_ptr + size - 1); base >= base_ptr; base--) {
+    if (*base == 0x00) 
+      (*valid_size)--;
+    else break;
+  }
+  // INFOPRINT("Current size: %lu => %lu\n", size, *valid_size);
 }
 
 bool Number::__operator_sum(const Number &param)
@@ -365,9 +439,10 @@ bool Number::__operator_mul(const Number &param)
     digits = this->pDigits;
 
     WARNPRINT("Starting %02lu cycle.\n", ps);
-    // TODO: Check this || statement, cause it's a bit weird.. ?
     for (size_t so = 0; so < this->iSize || result > 0; so++, digits++, resdig++) {
-      result  = ((uint16_t)((*pardig) * (*digits)) + result + (*resdig));
+      if (so < this->iSize) {
+        result  = ((uint16_t)((*pardig) * (*digits)) + result + (*resdig));
+      }
       *resdig = (uint8_t)(result & 0xFF);
       result  = (result >> CHAR_BITS);
 
@@ -415,16 +490,13 @@ bool Number::__operator_div(const Number &param)
     FAILPRINT("Can not allocate result digits.\n");
     return false;
   }
-
   memset(result, 0, sizeof(uint8_t) * sres);
   
-  size_t  operand = param.iSize;
-  uint8_t carry   = 0;
-
+  size_t  operand    = param.iSize;
   uint8_t *digits = this->pDigits + (this->iSize - param.iSize);
   uint8_t *resdig = result + (sres - param.iSize);
   uint8_t *oprdig = NULL;
-
+  
   for (; digits >= this->pDigits; ) {
     if (operand > param.iSize) {
       for (oprdig = (digits + operand - 1); *oprdig == 0 && oprdig > digits; oprdig--) {
@@ -434,19 +506,21 @@ bool Number::__operator_div(const Number &param)
       resdig--;
       digits--;
       operand++;
-    } else if (operand == param.iSize && this->__compare_less(digits, param.pDigits, param.iSize)) {
-      oprdig = digits;
-      for (size_t pr = 0; pr < param.iSize; pr++, oprdig++) {
-        if (*oprdig != 0) {
-          operand++;
-          break;
-        }
-      }
-      resdig--;
-      digits--;
       continue;
+    } else if (operand == param.iSize) { 
+      if (this->__compare_less(digits, param.pDigits, param.iSize)) {
+        oprdig = digits;
+        for (size_t pr = 0; pr < param.iSize; pr++, oprdig++) {
+          if (*oprdig != 0) {
+            operand++;
+            break;
+          }
+        }
+        resdig--;
+        digits--;
+        continue;
+      }
     }
-
     this->__internal_sub(digits, operand, param.pDigits, param.iSize, digits);
     (*resdig)++;
   }
@@ -457,10 +531,11 @@ bool Number::__operator_div(const Number &param)
   this->pDigits = result;
   this->iSize   = sres;
   this->__applysize();
-  
   return true;
 }
 
+/* This is a internal template, not for public usage. */
+/* Should be a type with direct memory access! */
 template<class T>
 bool Number::readStdType(T value)
 {
@@ -502,55 +577,51 @@ void Number::PrintHex(void)
   if (this->bNegative)
     printf("Negative number, ");
 
-  uint8_t *numEnd = (this->pDigits + this->iSize - 1);
-
-  for(; numEnd >= this->pDigits; numEnd--) {
+  for(uint8_t *numEnd = (this->pDigits + this->iSize - 1); numEnd >= this->pDigits; numEnd--) {
     printf("%02x ", *numEnd);
   }
   putchar('\n');
 }
 
-void Number::operator = (const int64_t rhs)
+/* {{{ Standard C/C++ type assign operator */
+Number& Number::operator = (const int value)
 {
-  this->readStdType<int64_t>(rhs);
+  this->readStdType<int>(value);
+  return *this;
 }
 
-void Number::operator = (const uint64_t value)
+Number& Number::operator = (const unsigned int value)
 {
-  this->readStdType<uint64_t>(value);
+  this->readStdType<unsigned int>(value);
+  return *this;
 }
 
-void Number::operator = (const int32_t value)
+Number& Number::operator = (const long value)
 {
-  this->readStdType<int32_t>(value);
+  this->readStdType<long>(value);
+  return *this;
 }
 
-void Number::operator = (const uint32_t value)
+Number& Number::operator = (const unsigned long value)
 {
-  this->readStdType<uint32_t>(value);
+  this->readStdType<unsigned long>(value);
+  return *this;
 }
 
-void Number::operator = (const int16_t value)
+Number& Number::operator = (const long long value)
 {
-  this->readStdType<int16_t>(value);
+  this->readStdType<long long>(value);
+  return *this;
 }
 
-void Number::operator = (const uint16_t value)
+Number& Number::operator = (const unsigned long long value)
 {
-  this->readStdType<uint16_t>(value);
+  this->readStdType<unsigned long long>(value);
+  return *this;
 }
+/* }}} */
 
-void Number::operator = (const int8_t value)
-{
-  this->readStdType<int8_t>(value);
-}
-
-void Number::operator = (const uint8_t value)
-{
-  this->readStdType<uint8_t>(value);
-}
-
-void Number::operator = (const char * buffer)
+Number& Number::operator = (const char * buffer)
 {
   if (*buffer == '-') {
     this->bNegative = true;
@@ -562,20 +633,28 @@ void Number::operator = (const char * buffer)
   size_t nsize = strlen(buffer);
   INFOPRINT("Number buffer size: %lu.\n", nsize);
 
+  for (const char * buf = buffer; *buf != 0; buf++) {
+    if (*buf >= '0' && *buf <= '9') continue;
+    else {
+      FAILPRINT("Character buffer contais invalid character '%c' (0x%02x).\n", *buf, *buf);
+      return *this;
+    }
+  }
+
   nsize = (size_t)((LOG_2_10 * nsize) / CHAR_BITS) + 1;
   if (!this->__allocate(nsize, NULL)) {
     FAILPRINT("Can not create digits buffer.\n");
-    return;
+    return *this;
   }
   memset(this->pDigits, 0, sizeof(uint8_t) * nsize);
 
   INFOPRINT("Allocated %lu, for number.\n", nsize);
-  for(; *buffer != 0; buffer++) {
-     if(*buffer == '=') continue; // No more Please, this is stupid as hell. 
+  for (; *buffer != 0; buffer++) {
      this->__digit_mul(10);
      this->__digit_sum(*buffer - '0');
   }
   this->__applysize();
+  return *this;
 }
 
 Number& Number::operator = (const Number &value)
@@ -763,7 +842,7 @@ char * Number::c_str(char *buffer, size_t size)
   
   while (csize > 0) {
     this->__safe_small_div(digits, csize, 10, &result);
-    *(buff++) = result + '0';
+    *(buff++) = (result + '0');
     for (param = (digits + csize - 1); param >= digits; param--) {
       if (*param != 0) break;
       else csize--;
@@ -776,12 +855,36 @@ char * Number::c_str(char *buffer, size_t size)
   *buff = '\0';
   ending = (--buff);
   
+  /* Flip character table. */
   for (buff = buffer; ending > buff; ending--, buff++) {
     result = *buff;
     *buff = *ending;
     *ending = result;
   }
+
   free(digits);
   return buffer;
 }
 
+
+void Number::testIt()
+{
+  uint8_t *ptrout = (uint8_t*)malloc(sizeof(uint8_t) * (this->iSize + 1));
+  memset(ptrout, 0, sizeof(uint8_t) * (this->iSize + 1));
+  memcpy(ptrout, this->pDigits, this->iSize);
+  size_t size = 0;
+
+  this->__safe_small_mul(ptrout, this->iSize + 1, 2, &size);
+  // this->__small_mul_allocation(this->pDigits, this->iSize, 2, &ptrout);
+  
+  INFOPRINT("Result size: %lu.\n", size);
+
+  uint8_t *numEnd = (ptrout + this->iSize + 1);
+  for(; numEnd >= ptrout; numEnd--) {
+    printf("%02x ", *numEnd);
+  }
+  putchar('\n');
+
+  if(ptrout != NULL)
+    free(ptrout);
+}
