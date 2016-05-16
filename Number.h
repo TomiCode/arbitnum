@@ -54,6 +54,9 @@ private:
   bool __operator_div(const Number &param);
   bool __operator_mod(const Number &param);
 
+  /* Negative bit is not taken into account. */
+  bool __operator_bit(const Number &param, uint8_t type);
+
   template<typename T>
     bool readStdType(T value);
 
@@ -106,6 +109,17 @@ public:
   const Number operator * (const Number &param);
   const Number operator / (const Number &param);
   const Number operator % (const Number &param);
+
+
+  Number& operator &= (const Number &param);
+  Number& operator |= (const Number &param);
+  Number& operator ^= (const Number &param);
+  // Number& operator >>= (const Number &param);
+  // Number& operator <<= (const Number &param);
+
+  const Number operator & (const Number &param);
+  const Number operator | (const Number &param);
+  const Number operator ^ (const Number &param);
 
   size_t c_str_size();
   char * c_str(char * buffer, size_t size);

@@ -6,18 +6,24 @@ int main(int argc, char ** argv)
   (void)argc;
   (void)argv; 
 
-  Number a = -123;
+  Number a = 0x7101;
+  Number b = 0x8213;
+  
+  a.PrintHex();
+  b.PrintHex();
+  a ^= b;
+  a.PrintHex();
   //Number b = "123456789123456789123456789";
   // Number b = "123123123";
   // a %= b;
 
 
   // printf("%lu.\n", b.c_str_size()); 
-  a.PrintHex();
-  char text[128] = {0};
-  a.c_str(text, 128);
+  // a.PrintHex();
+  // char text[128] = {0};
+  // a.c_str(text, 128);
 
-  printf("%s\n", text);
+  // printf("%s\n", text);
 
   // a = (long long)12;
 

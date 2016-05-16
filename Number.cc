@@ -1,6 +1,10 @@
 #include "Number.h"
 #include "Log.h"
 
+#define BIT_OP_AND 0x01
+#define BIT_OP_OR  0x02
+#define BIT_OP_XOR 0x04
+
 Number::Number()
 {
   this->__init();
@@ -570,6 +574,54 @@ bool Number::__operator_mod(const Number &param)
   return true;
 }
 
+bool Number::__operator_bit(const Number &param, uint8_t type)
+{
+  if (this == &param) {
+    FAILPRINT("Self operation not supported.\n");
+    return false;
+  }
+
+  if (!this->__isvalid()) {
+    FAILPRINT("Invalid self.\n");
+    return false;
+  }
+
+  if (!param.__isvalid()) {
+    FAILPRINT("Invalid operator parameter.\n");
+    return false;
+  }
+
+  size_t nsize = MAX(this->iSize, param.iSize);
+  uint8_t *digits = this->pDigits;
+  uint8_t *pardig = param.pDigits;
+
+  if (nsize != this->iSize) {
+    INFOPRINT("Reallocation of digits for result. (%lu => %lu)\n", this->iSize, nsize);
+    digits = (uint8_t*)realloc(this->pDigits, nsize);
+    if (digits == NULL) {
+      FAILPRINT("Can not reallocate result number.\n");
+      return false;
+    }
+    
+    memset((digits + this->iSize), 0, nsize - this->iSize);
+    this->pDigits = digits;
+    this->iSize   = nsize;
+  }
+
+  for (size_t sz = 0; sz < param.iSize; sz++, digits++, pardig++) {
+    INFOPRINT("Bit operation for type: %02x.\n", type);
+    if (type == BIT_OP_AND) {
+      *digits = (*digits & *pardig);
+    } else if (type == BIT_OP_OR) { 
+      *digits = (*digits | *pardig);
+    } else if (type == BIT_OP_XOR) {
+      *digits = (*digits ^ *pardig);
+    }
+  }
+  this->__applysize();
+  return true;
+}
+
 /* This is a internal template, not for public usage. */
 /* Should be a type with direct memory access! */
 template<class T>
@@ -826,6 +878,7 @@ Number& Number::operator /= (const Number &param)
 Number& Number::operator %= (const Number &param)
 {
   /* This operation depends on self-negativeness. */
+  /* Of course, this operator is a remainder not a MODULO. */
   this->__operator_mod(param);
   return *this;
 }
@@ -853,6 +906,39 @@ const Number Number::operator / (const Number &param)
 const Number Number::operator % (const Number &param)
 {
   return Number(*this) /= param;
+}
+
+Number& Number::operator &= (const Number &param)
+{
+  this->__operator_bit(param, BIT_OP_AND);
+  return *this;
+}
+
+Number& Number::operator |= (const Number &param)
+{
+  this->__operator_bit(param, BIT_OP_OR);
+  return *this;
+}
+
+Number& Number::operator ^= (const Number &param)
+{
+  this->__operator_bit(param, BIT_OP_XOR);
+  return *this;
+}
+
+const Number Number::operator & (const Number &param)
+{
+  return Number(*this) &= param;
+}
+
+const Number Number::operator | (const Number &param)
+{
+  return Number(*this) |= param;
+}
+
+const Number Number::operator ^ (const Number &param)
+{
+  return Number(*this) ^= param;
 }
 
 /* Not very digit precise.. but it should work. */
