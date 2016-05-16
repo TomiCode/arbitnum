@@ -6,12 +6,19 @@ int main(int argc, char ** argv)
   (void)argc;
   (void)argv; 
 
-  Number a = 0x7101;
-  Number b = 0x8213;
-  
+  Number a;
+
+  printf("Is valid? %s\n", a ? "Yes" : "No");
+  // Number b = 0x8213;
+  a = 0x01230000;
+  printf("Is valid? %s\n", a ? "Yes" : "No");
+  a = 0;
+  printf("Is valid? %s\n", a ? "Yes" : "No");
+
+  // a = 0x112233;
+
   a.PrintHex();
-  b.PrintHex();
-  a ^= b;
+  a >>= 10;
   a.PrintHex();
   //Number b = "123456789123456789123456789";
   // Number b = "123123123";

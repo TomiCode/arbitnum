@@ -56,6 +56,8 @@ private:
 
   /* Negative bit is not taken into account. */
   bool __operator_bit(const Number &param, uint8_t type);
+  bool __operator_bit_shift_left(const size_t param);
+  bool __operator_bit_shift_right(const size_t param);
 
   template<typename T>
     bool readStdType(T value);
@@ -98,6 +100,7 @@ public:
   bool operator == (const Number &param);
   bool operator != (const Number &param);
 
+  /* Arithmetic operators */
   Number& operator += (const Number &param);
   Number& operator -= (const Number &param);
   Number& operator *= (const Number &param);
@@ -110,17 +113,23 @@ public:
   const Number operator / (const Number &param);
   const Number operator % (const Number &param);
 
-
+  /* Bit manipulation */
   Number& operator &= (const Number &param);
   Number& operator |= (const Number &param);
   Number& operator ^= (const Number &param);
-  // Number& operator >>= (const Number &param);
-  // Number& operator <<= (const Number &param);
+  Number& operator <<= (const size_t param);
+  Number& operator >>= (const size_t param);
 
   const Number operator & (const Number &param);
   const Number operator | (const Number &param);
   const Number operator ^ (const Number &param);
+  const Number operator << (const size_t param);
+  const Number operator >> (const size_t param);
 
+  /* Statement bool cast operator */
+  operator bool();
+
+  /* String conversion */
   size_t c_str_size();
   char * c_str(char * buffer, size_t size);
 

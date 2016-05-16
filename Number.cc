@@ -622,6 +622,89 @@ bool Number::__operator_bit(const Number &param, uint8_t type)
   return true;
 }
 
+bool Number::__operator_bit_shift_left(const size_t param)
+{
+  if (!this->__isvalid()) {
+    FAILPRINT("Invalid self.\n");
+    return false;
+  }
+  if (param == 0) return true;
+
+  uint8_t *digits  = NULL;
+  uint8_t *ending  = NULL;
+  uint8_t *valptr  = NULL;
+  uint16_t lastval = 0;
+
+  uint8_t bit_sh = (param % CHAR_BITS);
+  size_t byte_sh = (param / CHAR_BITS);
+
+  /* Need to reallocate memory region. */
+  digits = (uint8_t*)realloc(this->pDigits, sizeof(uint8_t) * (this->iSize + byte_sh + 1));
+  if (digits == NULL) {
+    FAILPRINT("Can not reallocate result buffer.\n");
+    return false;
+  }
+
+  INFOPRINT("Moving %lu bytes and %u bits in number.\n", byte_sh, bit_sh);
+  this->pDigits = digits;
+  this->iSize   = (this->iSize + byte_sh + 1);
+
+  ending = (this->pDigits + this->iSize);
+  
+  for (size_t ls = 0; ls < byte_sh && digits < ending; ls++, digits++) {
+    for (valptr = (digits + byte_sh); valptr < ending; valptr += byte_sh) {
+      lastval = *valptr;
+      *valptr = *digits;
+      *digits = lastval;
+    }
+    *digits = 0;
+  }
+
+  lastval = 0;
+  for (digits = (this->pDigits + byte_sh); digits < ending; digits++) {
+    lastval = (*digits << bit_sh) | lastval;
+    *digits = (uint8_t)(lastval & 0xFF);
+    lastval = (lastval >> CHAR_BITS);
+  }
+  this->__applysize();
+  return true;
+}
+
+bool Number::__operator_bit_shift_right(const size_t param)
+{
+  if (!this->__isvalid()) {
+    FAILPRINT("Invalid self.\n");
+    return false;
+  }
+  if (param == 0) return true;
+
+  uint8_t *digits = (this->pDigits + this->iSize - 1);
+  uint8_t *valptr = NULL;
+  uint16_t lastval = 0;
+
+  uint8_t bit_sh = (param % CHAR_BITS);
+  size_t byte_sh = (param / CHAR_BITS);
+
+  for (size_t rs = 0; rs < byte_sh && digits >= this->pDigits; rs++, digits--) {
+    for (valptr = (digits - byte_sh); valptr >= this->pDigits; valptr -= byte_sh) {
+      lastval = *valptr;
+      *valptr = *digits;
+      *digits = lastval;
+    }
+    *digits = 0;
+  }
+
+  if (bit_sh != 0) {
+    for (digits = (this->pDigits + this->iSize - 1 - byte_sh); digits >= this->pDigits; digits--) {
+      lastval = ((*digits << CHAR_BITS) >> bit_sh) | (lastval << CHAR_BITS);
+      *digits = (uint8_t)(lastval >> CHAR_BITS);
+      lastval = (lastval & 0xFF);
+    }
+  }
+
+  return this->__applysize();
+}
+
 /* This is a internal template, not for public usage. */
 /* Should be a type with direct memory access! */
 template<class T>
@@ -654,11 +737,10 @@ bool Number::readStdType(T value)
 void Number::PrintHex(void)
 {
   printf("[%p/%p]: ", this, this->pDigits);
-  if (this->iSize <= 0)
+  if (this->iSize <= 0 || this->pDigits == NULL) {
+    printf(" (nil)\n");
     return;
-
-  if (this->pDigits == NULL)
-    return;
+  }
 
   if (this->bNegative)
     printf("Negative number, ");
@@ -926,6 +1008,18 @@ Number& Number::operator ^= (const Number &param)
   return *this;
 }
 
+Number& Number::operator <<= (const size_t param)
+{
+  this->__operator_bit_shift_left(param);
+  return *this;
+}
+
+Number& Number::operator >>= (const size_t param)
+{
+  this->__operator_bit_shift_right(param);
+  return *this;
+}
+
 const Number Number::operator & (const Number &param)
 {
   return Number(*this) &= param;
@@ -939,6 +1033,21 @@ const Number Number::operator | (const Number &param)
 const Number Number::operator ^ (const Number &param)
 {
   return Number(*this) ^= param;
+}
+
+const Number Number::operator << (const size_t param)
+{
+  return Number(*this) <<= param;
+}
+
+const Number Number::operator >> (const size_t param)
+{
+  return Number(*this) >>= param;
+}
+
+Number::operator bool()
+{
+  return this->__isvalid();
 }
 
 /* Not very digit precise.. but it should work. */
