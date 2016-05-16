@@ -6,9 +6,18 @@ int main(int argc, char ** argv)
   (void)argc;
   (void)argv; 
 
+  Number a = -123;
+  //Number b = "123456789123456789123456789";
+  // Number b = "123123123";
+  // a %= b;
 
-  Number a = (long long int)12;
-  Number b = 12345;
+
+  // printf("%lu.\n", b.c_str_size()); 
+  a.PrintHex();
+  char text[128] = {0};
+  a.c_str(text, 128);
+
+  printf("%s\n", text);
 
   // a = (long long)12;
 

@@ -163,9 +163,11 @@ bool Number::__applysize()
   WARNPRINT("Shrinking memory allocation %lu => %lu.\n", this->iSize, newsize);
 
   uint8_t *digitptr = (uint8_t*)realloc(this->pDigits, sizeof(uint8_t) * newsize);
-  if (digitptr == NULL) {
+  if (newsize != 0 && digitptr == NULL) {
     FAILPRINT("Can not shrink memory allocation. (nil).\n");
     return false;
+  } else if (newsize == 0) {
+    WARNPRINT("Clearing number allocation. (zero detection)\n");
   }
 
   this->iSize   = newsize;
@@ -254,6 +256,40 @@ inline void Number::__internal_sub(uint8_t *operand, size_t operand_size, uint8_
       *result = (uint8_t)(*operand - carry);
       carry   = 0x00;
     }
+  }
+}
+
+void Number::__internal_div(uint8_t *operand, size_t operand_size, uint8_t *param, size_t param_size, uint8_t *result, size_t result_size)
+{
+  size_t csize = param_size;
+  uint8_t *digits = operand + (operand_size - param_size);
+  uint8_t *resdig = result != NULL ? (result + (result_size - param_size)) : NULL;
+  uint8_t *oprdig = NULL;
+
+  for (; digits >= operand; ) {
+    if (csize > param_size) {
+      for (oprdig = (digits + csize - 1); *oprdig == 0 && oprdig > digits; oprdig--) {
+        csize--;
+      }
+    } else if (csize < param_size) {
+      if (resdig != NULL) resdig--;
+      digits--;
+      csize++;
+      continue;
+    } else if (csize == param_size && this->__compare_less(digits, param, param_size)) {
+      oprdig = digits;
+      for (size_t pr = 0; pr < param_size; pr++, oprdig++) {
+        if (*oprdig != 0) {
+          csize++;
+          break;
+        }
+      }
+      if (resdig != NULL) resdig--;
+      digits--;
+      continue;
+    }
+    this->__internal_sub(digits, csize, param, param_size, digits);
+    if (resdig != NULL) (*resdig)++;
   }
 }
 
@@ -480,8 +516,13 @@ bool Number::__operator_div(const Number &param)
   }
 
   if (this->iSize < param.iSize) {
-    FAILPRINT("Parameter has more digits!\n");
-    return false;
+    FAILPRINT("Parameter has more digits - freeing number..\n");
+    
+    free(this->pDigits);
+    this->pDigits = NULL;
+    this->iSize   = 0;
+    
+    return true;
   }
 
   size_t sres = MAX(this->iSize, param.iSize);
@@ -492,38 +533,7 @@ bool Number::__operator_div(const Number &param)
   }
   memset(result, 0, sizeof(uint8_t) * sres);
   
-  size_t  operand    = param.iSize;
-  uint8_t *digits = this->pDigits + (this->iSize - param.iSize);
-  uint8_t *resdig = result + (sres - param.iSize);
-  uint8_t *oprdig = NULL;
-  
-  for (; digits >= this->pDigits; ) {
-    if (operand > param.iSize) {
-      for (oprdig = (digits + operand - 1); *oprdig == 0 && oprdig > digits; oprdig--) {
-        operand--;
-      }
-    } else if (operand < param.iSize) {
-      resdig--;
-      digits--;
-      operand++;
-      continue;
-    } else if (operand == param.iSize) { 
-      if (this->__compare_less(digits, param.pDigits, param.iSize)) {
-        oprdig = digits;
-        for (size_t pr = 0; pr < param.iSize; pr++, oprdig++) {
-          if (*oprdig != 0) {
-            operand++;
-            break;
-          }
-        }
-        resdig--;
-        digits--;
-        continue;
-      }
-    }
-    this->__internal_sub(digits, operand, param.pDigits, param.iSize, digits);
-    (*resdig)++;
-  }
+  this->__internal_div(this->pDigits, this->iSize, param.pDigits, param.iSize, result, sres);
 
   WARNPRINT("Removing operand digits!\n");
   free(this->pDigits);
@@ -534,13 +544,37 @@ bool Number::__operator_div(const Number &param)
   return true;
 }
 
+bool Number::__operator_mod(const Number &param)
+{
+  if (this == &param) {
+    FAILPRINT("Self operation not supported.\n");
+    return false;
+  }
+
+  if (!this->__isvalid()) {
+    FAILPRINT("Invalid self.\n");
+    return false;
+  }
+
+  if (!param.__isvalid()) {
+    FAILPRINT("Operator param invalid.\n");
+    return false;
+  }
+
+  if (this->iSize < param.iSize) {
+    INFOPRINT("Nothing to do. (param has more digits)\n");
+    return true;
+  }
+  this->__internal_div(this->pDigits, this->iSize, param.pDigits, param.iSize, NULL, 0);
+  this->__applysize();
+  return true;
+}
+
 /* This is a internal template, not for public usage. */
 /* Should be a type with direct memory access! */
 template<class T>
 bool Number::readStdType(T value)
 {
-  T _val = value;
-
   if (!this->__allocate(sizeof(T), NULL)) {
     FAILPRINT("Can not create digits for number.\n");
     return false;
@@ -548,8 +582,8 @@ bool Number::readStdType(T value)
 
   INFOPRINT("[%p] %p, size: %lu\n", this, this->pDigits, this->iSize);
 
-  if (_val < 0) {
-    _val *= (-1);
+  if (value < 0) {
+    value *= (-1);
     this->bNegative = true;
   }
   
@@ -789,6 +823,13 @@ Number& Number::operator /= (const Number &param)
   return *this;
 }
 
+Number& Number::operator %= (const Number &param)
+{
+  /* This operation depends on self-negativeness. */
+  this->__operator_mod(param);
+  return *this;
+}
+
 const Number Number::operator + (const Number &param)
 {
   return Number(*this) += param;
@@ -809,10 +850,15 @@ const Number Number::operator / (const Number &param)
   return Number(*this) /= param;
 }
 
+const Number Number::operator % (const Number &param)
+{
+  return Number(*this) /= param;
+}
+
 /* Not very digit precise.. but it should work. */
 size_t Number::c_str_size()
 {
-  return (size_t)(LOG_10_2 * CHAR_BITS * this->iSize + 1);
+  return (size_t)(LOG_10_2 * CHAR_BITS * (this->iSize + 1));
 }
 
 char * Number::c_str(char *buffer, size_t size)
@@ -823,6 +869,14 @@ char * Number::c_str(char *buffer, size_t size)
   if (size < this->c_str_size()) {
     FAILPRINT("Character buffer to small.\n");
     return NULL;
+  }
+
+  if (!this->__isvalid()) {
+    INFOPRINT("Not valid number, result is zero.\n");
+
+    *(buffer++) =  '0';
+    *(buffer) = '\0';
+    return buffer;
   }
 
   size_t  csize = this->iSize;
@@ -875,7 +929,6 @@ void Number::testIt()
   size_t size = 0;
 
   this->__safe_small_mul(ptrout, this->iSize + 1, 2, &size);
-  // this->__small_mul_allocation(this->pDigits, this->iSize, 2, &ptrout);
   
   INFOPRINT("Result size: %lu.\n", size);
 

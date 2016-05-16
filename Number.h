@@ -27,6 +27,7 @@ private:
   bool __applysize();
 
   bool __isvalid() const;
+  bool __iszero() const;
 
   /* Comparison for equal sizes. Beware, no NULL protection. */
   bool __compare_greater(uint8_t *base_start, uint8_t *param_start, size_t size);
@@ -35,6 +36,8 @@ private:
 
   inline void __internal_add(uint8_t *operand, size_t operand_size, uint8_t *param, size_t param_size);
   inline void __internal_sub(uint8_t *operand, size_t operand_size, uint8_t *param, size_t param_size, uint8_t *result);
+  
+  void __internal_div(uint8_t *operand, size_t operand_size, uint8_t *param, size_t param_size, uint8_t *result, size_t result_size);
 
   /* For small operations like Number * 10, etc. */
   /* Of course, for internal usage only, nobody should use this else where, */
@@ -49,6 +52,7 @@ private:
   bool __operator_sub(const Number &param, bool __op = false);
   bool __operator_mul(const Number &param);
   bool __operator_div(const Number &param);
+  bool __operator_mod(const Number &param);
 
   template<typename T>
     bool readStdType(T value);
@@ -88,7 +92,6 @@ public:
   bool operator >  (const Number &param);
   bool operator <= (const Number &param);
   bool operator >= (const Number &param);
-  
   bool operator == (const Number &param);
   bool operator != (const Number &param);
 
@@ -96,11 +99,13 @@ public:
   Number& operator -= (const Number &param);
   Number& operator *= (const Number &param);
   Number& operator /= (const Number &param);
+  Number& operator %= (const Number &param);
   
   const Number operator + (const Number &param);
   const Number operator - (const Number &param);
   const Number operator * (const Number &param);
   const Number operator / (const Number &param);
+  const Number operator % (const Number &param);
 
   size_t c_str_size();
   char * c_str(char * buffer, size_t size);
