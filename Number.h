@@ -132,8 +132,6 @@ public:
   /* String conversion */
   size_t c_str_size();
   char * c_str(char * buffer, size_t size);
-
-  void testIt();
 };
 
 #endif

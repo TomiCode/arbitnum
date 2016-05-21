@@ -5,62 +5,10 @@ int main(int argc, char ** argv)
 {
   (void)argc;
   (void)argv; 
-
-  Number a;
-
-  printf("Is valid? %s\n", a ? "Yes" : "No");
-  // Number b = 0x8213;
-  a = 0x01230000;
-  printf("Is valid? %s\n", a ? "Yes" : "No");
-  a = 0;
-  printf("Is valid? %s\n", a ? "Yes" : "No");
-
-  // a = 0x112233;
-
-  a.PrintHex();
-  a >>= 10;
-  a.PrintHex();
-  //Number b = "123456789123456789123456789";
-  // Number b = "123123123";
-  // a %= b;
-
-
-  // printf("%lu.\n", b.c_str_size()); 
-  // a.PrintHex();
-  // char text[128] = {0};
-  // a.c_str(text, 128);
-
-  // printf("%s\n", text);
-
-  // a = (long long)12;
-
-  // Number a;
-  // Number c;
-
-  // a = 0xFFFFFF;
-  // c = 0x02;
-
-  // a.PrintHex();
-  // c.testIt();
-  // c.PrintHex();
   
-  // a /= c;
-  // a.PrintHex();
-  // a.PrintHex();
-  // c.PrintHex();
-
-  // a /= c;
-
-  // a.PrintHex();
-
-
-  // a.PrintHex();
-  // a.testIt();
-  // a.PrintHex();
-
-  /* {{{ Working project.. 
+  /* {{{ Working project..  */
   int counter = 0;
-  char * text = (char*)malloc(sizeof(char) * 16024);
+  char * text = (char*)malloc(sizeof(char) * 1024);
   char * op = NULL;
   char operation = 0;
 
@@ -101,11 +49,11 @@ int main(int argc, char ** argv)
       default:
       ;
     }
-    a.c_str(text, 16024);
+    a.c_str(text, 1024);
     printf("%s\n", text);
     counter--;
   }
   free(text);
-  }}} */
+  /* }}} */
   return 0;
 }

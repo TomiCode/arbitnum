@@ -1115,24 +1115,3 @@ char * Number::c_str(char *buffer, size_t size)
   return buffer;
 }
 
-
-void Number::testIt()
-{
-  uint8_t *ptrout = (uint8_t*)malloc(sizeof(uint8_t) * (this->iSize + 1));
-  memset(ptrout, 0, sizeof(uint8_t) * (this->iSize + 1));
-  memcpy(ptrout, this->pDigits, this->iSize);
-  size_t size = 0;
-
-  this->__safe_small_mul(ptrout, this->iSize + 1, 2, &size);
-  
-  INFOPRINT("Result size: %lu.\n", size);
-
-  uint8_t *numEnd = (ptrout + this->iSize + 1);
-  for(; numEnd >= ptrout; numEnd--) {
-    printf("%02x ", *numEnd);
-  }
-  putchar('\n');
-
-  if(ptrout != NULL)
-    free(ptrout);
-}
