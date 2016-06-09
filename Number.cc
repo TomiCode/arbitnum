@@ -66,10 +66,7 @@ Number::Number(const unsigned long long value)
 
 Number::Number(const char * buffer)
 {
-  this->pDigits   = NULL;
-  this->iSize     = 0;
-  this->bNegative = 0;
-
+  this->__init();
   this->operator=(buffer);
 }
 
@@ -117,6 +114,12 @@ bool Number::__reallocate(size_t size, uint8_t ** out_ptr)
     FAILPRINT("Can not modify memory allocation.\n");
     return false;
   }
+
+  if (this->iSize < size) {
+    WARNPRINT("Zeroing new memory space.\n");
+    memset((ndigits + this->iSize), 0, (size - this->iSize));
+  }
+  
   this->iSize   = size;
   this->pDigits = ndigits;
 
@@ -257,8 +260,13 @@ inline void Number::__internal_sub(uint8_t *operand, size_t operand_size, uint8_
         carry   = 0x00;
       }
     } else {
-      *result = (uint8_t)(*operand - carry);
-      carry   = 0x00;
+      if (*operand < carry) { 
+        *result = (uint8_t)((1 << CHAR_BITS) - carry);
+        carry   = 0x01;
+      } else {
+        *result = (uint8_t)(*operand - carry);
+        carry   = 0x00;
+      }
     }
   }
 }
@@ -267,7 +275,7 @@ void Number::__internal_div(uint8_t *operand, size_t operand_size, uint8_t *para
 {
   size_t csize = param_size;
   uint8_t *digits = operand + (operand_size - param_size);
-  uint8_t *resdig = result != NULL ? (result + (result_size - param_size)) : NULL;
+  uint8_t *resdig = (result != NULL) ? (result + (result_size - param_size)) : NULL;
   uint8_t *oprdig = NULL;
 
   for (; digits >= operand; ) {
@@ -275,7 +283,9 @@ void Number::__internal_div(uint8_t *operand, size_t operand_size, uint8_t *para
       for (oprdig = (digits + csize - 1); *oprdig == 0 && oprdig > digits; oprdig--) {
         csize--;
       }
-    } else if (csize < param_size) {
+    }
+    
+    if (csize < param_size) {
       if (resdig != NULL) resdig--;
       digits--;
       csize++;
@@ -377,7 +387,13 @@ bool Number::__operator_sum(const Number &param)
   }
 
   if (!this->__isvalid()) {
-    FAILPRINT("Invalid self.\n");
+    WARNPRINT("Self invalid.\n");
+    
+    if (param.__isvalid()) {
+      INFOPRINT("Copying number from valid parameter.\n");
+      this->operator=(param);
+      return true;
+    }
     return false;
   }
 
@@ -406,7 +422,14 @@ bool Number::__operator_sub(const Number &param, bool __op)
   }
 
   if (!this->__isvalid()) {
-    FAILPRINT("Invalid self.\n");
+    WARNPRINT("Self invalid.\n");
+
+    if (param.__isvalid()) {
+      INFOPRINT("Copying valid parameter data.\n");
+      this->operator=(param);
+      this->bNegative = !this->bNegative;
+      return true;
+    }
     return false;
   }
 
@@ -455,8 +478,13 @@ bool Number::__operator_mul(const Number &param)
   }
 
   if (!param.__isvalid()) {
-    FAILPRINT("Operator param invalid.\n");
-    return false;
+    WARNPRINT("Operator param invalid. Freeing memory..\n");
+    
+    free(this->pDigits);
+    this->pDigits = NULL;
+    this->iSize   = 0;
+
+    return true;
   }
 
   size_t sres = this->iSize + param.iSize;
@@ -520,7 +548,7 @@ bool Number::__operator_div(const Number &param)
   }
 
   if (this->iSize < param.iSize) {
-    FAILPRINT("Parameter has more digits - freeing number..\n");
+    WARNPRINT("Parameter has more digits - freeing number..\n");
     
     free(this->pDigits);
     this->pDigits = NULL;
@@ -836,7 +864,7 @@ Number& Number::operator = (const Number &value)
     FAILPRINT("Size unknown.\n");
     return *this;
   }
-
+  
   if (!this->__allocate(value.iSize, NULL)) {
     FAILPRINT("Can not allocate digits.\n");
     return *this;
@@ -846,6 +874,9 @@ Number& Number::operator = (const Number &value)
     FAILPRINT("Error while copying memory.\n");
     return *this;
   }
+
+  /* Copy sign over. */
+  this->bNegative = value.bNegative;
   return *this;
 }
 

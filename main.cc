@@ -6,7 +6,7 @@ int main(int argc, char ** argv)
   (void)argc;
   (void)argv; 
   
-  /* {{{ Working project..  */
+  /* {{{ Project dependent code - read/write stdio. */
   int counter = 0;
   char * text = (char*)malloc(sizeof(char) * 1024);
   char * op = NULL;
@@ -16,11 +16,13 @@ int main(int argc, char ** argv)
     return 0;
 
   scanf("%d", &counter);
+  
   Number a;
   Number b;
 
   while(counter > 0) {
     scanf("%s", text);
+    
     op = text;
     while(*op != '\0') {
       if (*op == '+' || *op == '-' || *op == '*' || *op == '/') {
@@ -55,5 +57,6 @@ int main(int argc, char ** argv)
   }
   free(text);
   /* }}} */
+
   return 0;
 }

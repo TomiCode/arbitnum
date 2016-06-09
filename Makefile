@@ -4,7 +4,7 @@ COBJ = \033[1;33m
 CCLEAR = \033[1;31m
 
 CC = clang++
-CFLAGS := $(CFLAGS) -g -W -Werror -Wextra -D__DEBUG_LOG -std=c++98
+CFLAGS := $(CFLAGS) -g -W -Werror -Wextra -std=c++98
 LIBS = 
 
 ELF = ArbitraryNumbers
